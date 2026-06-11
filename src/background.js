@@ -71,19 +71,26 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
+const fail = (sendResponse) => (e) => sendResponse({ ok: false, error: String(e?.message || e) });
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === 'refresh') {
-    refreshAll(!!msg.force).then(() => sendResponse({ ok: true }));
+    refreshAll(!!msg.force)
+      .then(() => sendResponse({ ok: true }))
+      .catch(fail(sendResponse));
     return true; // keep the message channel open for the async response
   }
   if (msg?.type === 'antigravity-connect') {
-    startConnect().then(() => sendResponse({ ok: true }));
+    startConnect()
+      .then(() => sendResponse({ ok: true }))
+      .catch(fail(sendResponse));
     return true;
   }
   if (msg?.type === 'antigravity-disconnect') {
     disconnect()
       .then(() => refreshAll(true))
-      .then(() => sendResponse({ ok: true }));
+      .then(() => sendResponse({ ok: true }))
+      .catch(fail(sendResponse));
     return true;
   }
 });
@@ -98,15 +105,27 @@ async function schedule() {
 }
 
 let refreshing = null;
+let pendingForce = false;
 
 function refreshAll(force = false) {
   // 팝업 오픈과 알람이 겹쳐도 한 번만 폴링
-  if (!refreshing) {
-    refreshing = doRefreshAll(force).finally(() => {
-      refreshing = null;
-    });
+  if (refreshing) {
+    // 비-force 폴링이 도는 중에 force 요청이 겹치면, 끝난 뒤 캐시 무효화 폴링을 한 번 더 보장
+    if (force) pendingForce = true;
+    return refreshing;
   }
+  refreshing = runRefreshLoop(force).finally(() => {
+    refreshing = null;
+  });
   return refreshing;
+}
+
+async function runRefreshLoop(force) {
+  await doRefreshAll(force);
+  while (pendingForce) {
+    pendingForce = false;
+    await doRefreshAll(true);
+  }
 }
 
 async function doRefreshAll(force = false) {

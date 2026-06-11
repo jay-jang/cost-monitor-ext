@@ -70,10 +70,16 @@ export async function fetchJson(url, init = {}) {
   return parseJson(body);
 }
 
-// 서비스 워커 직접 fetch가 403/네트워크 오류면 열린 탭을 통해 재시도
+function looksLikeJson(body) {
+  const s = (body || '').trimStart();
+  return s.startsWith('{') || s.startsWith('[');
+}
+
+// 서비스 워커 직접 fetch가 403/네트워크 오류, 또는 JSON이 아닌 응답(로그인·보안 HTML이
+// 200으로 오는 경우)이면 열린 탭을 통해 재시도한다.
 export async function fetchJsonWithTabFallback(url, tabUrlPattern, init = {}) {
   let { status, body } = await rawFetch(url, init);
-  if (status === 403 || status === 0) {
+  if (status === 403 || status === 0 || (status >= 200 && status < 300 && !looksLikeJson(body))) {
     const viaTab = await fetchViaOpenTab(tabUrlPattern, url, init);
     if (viaTab) ({ status, body } = viaTab);
   }
