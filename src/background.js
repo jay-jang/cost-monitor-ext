@@ -156,33 +156,53 @@ async function doRefreshAll(force = false) {
   );
 
   await chrome.storage.local.set({ snapshots });
-  await updateBadge(snapshots, opts);
+  await updateBadge(snapshots);
   await maybeNotify(snapshots, opts);
 }
 
-async function updateBadge(snapshots, opts) {
-  let worst = null;
-  let anyAuthError = false;
+// 배지는 직전 폴링 대비 사용량이 가장 최근에 바뀐 윈도우(=지금 활발히 소모 중인 한도)를
+// 보여준다. 변화가 없으면 마지막으로 바뀐 윈도우 선택을 유지한다. 같은 폴링에서 여러 개가
+// 동시에 바뀌면 사용률이 가장 높은 것을 고른다. 색은 그 윈도우가 속한 서비스의 브랜드 색.
+async function pickBadgeWindow(snapshots) {
+  const { windowState = {} } = await chrome.storage.local.get('windowState');
+  const now = Date.now();
+  const next = {};
+  let pick = null; // { pct, color, changedAt }
 
   for (const p of PROVIDERS) {
     const snap = snapshots[p.id];
-    if (!snap) continue;
-    if (!snap.ok) {
-      if (snap.errorType === 'auth') anyAuthError = true;
-      continue;
-    }
+    if (!snap?.ok) continue;
     for (const w of snap.windows || []) {
       const pct = clampPct(w.usedPct);
       if (pct === null) continue;
-      if (worst === null || pct > worst) worst = pct;
+      const key = `${p.id}:${w.id}`;
+      const prev = windowState[key];
+      const changedAt = !prev || prev.pct !== pct ? now : prev.changedAt;
+      next[key] = { pct, changedAt };
+      if (
+        pick === null ||
+        changedAt > pick.changedAt ||
+        (changedAt === pick.changedAt && pct > pick.pct)
+      ) {
+        pick = { pct, color: p.color, changedAt };
+      }
     }
   }
 
-  if (worst !== null) {
-    const color =
-      worst >= opts.critPct ? '#d93025' : worst >= opts.warnPct ? '#f9ab00' : '#188038';
-    await chrome.action.setBadgeText({ text: String(Math.round(worst)) });
-    await chrome.action.setBadgeBackgroundColor({ color });
+  await chrome.storage.local.set({ windowState: next });
+  return pick;
+}
+
+async function updateBadge(snapshots) {
+  const pick = await pickBadgeWindow(snapshots);
+  const anyAuthError = PROVIDERS.some((p) => {
+    const s = snapshots[p.id];
+    return s && !s.ok && s.errorType === 'auth';
+  });
+
+  if (pick) {
+    await chrome.action.setBadgeText({ text: String(Math.round(pick.pct)) });
+    await chrome.action.setBadgeBackgroundColor({ color: pick.color });
     if (chrome.action.setBadgeTextColor) {
       await chrome.action.setBadgeTextColor({ color: '#ffffff' });
     }

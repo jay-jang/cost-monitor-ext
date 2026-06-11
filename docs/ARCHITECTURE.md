@@ -49,7 +49,7 @@ All providers follow the same **adapter contract** (`providers/index.js`):
 
 1. **Scheduling** — `chrome.alarms` calls `refreshAll()` every N minutes (default: 5 minutes). Opening the popup or changing options triggers an immediate poll. If an alarm poll overlaps with a popup poll, the `refreshing` guard ensures only one execution runs.
 2. **Collection** — Calls `fetchUsage()` for all enabled providers in parallel using `Promise.all`. The successful or failed results are saved to `snapshots[providerId]` (`{ at, ok, plan, windows }` or `{ ok: false, errorType, message }`).
-3. **Badge** — Displays the **highest usage percentage** across all windows as a badge number. It turns orange at `warnPct` (default: 75%) and red at `critPct` (default: 90%). If there is no usage data but an authentication error exists, it displays `!`.
+3. **Badge** — Displays the usage % of the window that **changed most recently** versus the previous poll (the limit you are actively consuming), tracked via a persisted `windowState` map (`{ [provider:window]: { pct, changedAt } }`). If nothing changed this poll, the last-changed selection is kept; if several windows change in the same poll, the one with the highest usage wins. On the very first run (no history) it falls back to the highest-usage window. The badge background uses the **provider's brand color** so you can tell which service the number belongs to. If there is no usage data but an authentication error exists, it displays `!`.
 4. **Notification** — Sends a desktop notification **only the first time** the usage crosses a threshold level (edge-triggered). The last level is recorded in `notifyState` to prevent repeated notifications on every poll.
 
 ---
@@ -177,6 +177,7 @@ Runtime data stored in `chrome.storage.local`:
 |---|---|
 | `snapshots` | Latest usage results per provider |
 | `notifyState` | State tracker for edge-triggered notifications |
+| `windowState` | Per-window `{ pct, changedAt }` used to pick the badge's most-recently-changed window |
 | `claudeOrg` | Cache for Claude organization info (24h) |
 | `agTokens` | Antigravity OAuth tokens |
 | `agProject` | Cache for Antigravity project/billing tier (24h) |
