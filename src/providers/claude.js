@@ -83,6 +83,7 @@ export const claude = {
   name: 'Claude',
   color: '#d97757',
   loginUrl: 'https://claude.ai/settings/usage',
+  usageUrl: 'https://claude.ai/settings/usage',
 
   async fetchUsage() {
     let org = await getOrg();

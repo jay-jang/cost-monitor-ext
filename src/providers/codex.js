@@ -36,6 +36,7 @@ export const codex = {
   name: 'Codex',
   color: '#10a37f',
   loginUrl: 'https://chatgpt.com/codex/settings/usage',
+  usageUrl: 'https://chatgpt.com/codex/settings/usage',
 
   async fetchUsage() {
     // 1. Fetch accessToken from the NextAuth session endpoint.

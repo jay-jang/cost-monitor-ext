@@ -59,6 +59,18 @@ async function render(snapshots) {
     name.className = 'pname';
     name.textContent = p.name;
     head.append(dot, name);
+    if (p.usageUrl) {
+      const link = document.createElement('a');
+      link.className = 'pext';
+      link.textContent = '↗';
+      link.href = p.usageUrl;
+      link.title = 'Open usage page';
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        chrome.tabs.create({ url: p.usageUrl });
+      });
+      head.append(link);
+    }
     if (snap?.ok && snap.plan) {
       const plan = document.createElement('span');
       plan.className = 'plan';

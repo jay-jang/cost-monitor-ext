@@ -29,7 +29,7 @@ Since it queries the **server-side usage APIs of each service** rather than read
 ## Features
 
 - **Toolbar Badge**: Shows the usage % of the window whose quota changed most recently (i.e. the limit you are actively consuming), so the badge follows your current activity. The badge background is the **brand color of that service** (Claude orange / Codex green / Antigravity blue) so you can tell at a glance which service the number belongs to.
-- **Popup**: Cards for each service showing the remaining percentage progress bar and reset countdown for each quota window (e.g., 5-hour session, weekly, model pools).
+- **Popup**: Cards for each service showing the remaining percentage progress bar and reset countdown for each quota window (e.g., 5-hour session, weekly, model pools). Click the ↗ next to a service name to open its usage page (Claude / Codex; Antigravity has no such page).
 - **Desktop Notifications**: A one-time notification is triggered when usage first crosses the warning/critical threshold.
 - **Options**: Toggle individual services, configure polling interval (1–15 mins), warning/critical thresholds, and desktop notification toggles.
 
