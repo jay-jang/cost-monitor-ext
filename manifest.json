@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "LLM Quota Monitor",
+  "version": "0.1.0",
+  "description": "Claude Code · Codex · Antigravity 플랜 사용량을 한눈에 — 남은 한도를 실시간으로 추적",
+  "permissions": [
+    "alarms",
+    "storage",
+    "notifications",
+    "cookies",
+    "scripting",
+    "tabs",
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "https://claude.ai/*",
+    "https://chatgpt.com/*",
+    "https://oauth2.googleapis.com/*",
+    "https://cloudcode-pa.googleapis.com/*",
+    "https://www.googleapis.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "LLM Quota Monitor",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_ui": {
+    "page": "src/options/options.html",
+    "open_in_tab": true
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

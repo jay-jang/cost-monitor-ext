@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      min-width: 320px;
+      background: #16181d;
+      color: #e8eaed;
+      font: 13px/1.6 -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      padding: 16px;
+    }
+    h2 { font-size: 13px; color: #9aa0a6; margin: 14px 0 6px; font-weight: 600; }
+    label { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+    select, input[type="number"] {
+      background: #1f2229; color: #e8eaed;
+      border: 1px solid #2c3038; border-radius: 6px; padding: 3px 8px;
+    }
+    input[type="number"] { width: 60px; }
+    .saved { color: #34a853; font-size: 12px; margin-top: 12px; visibility: hidden; }
+    button {
+      background: #1f2229; color: #e8eaed;
+      border: 1px solid #2c3038; border-radius: 6px;
+      padding: 4px 12px; cursor: pointer;
+    }
+    button:hover { background: #2c3038; }
+    .hint { color: #9aa0a6; font-size: 12px; margin: 4px 0; }
+    .ag-status { font-size: 12px; margin: 6px 0; }
+    .ag-status.ok { color: #34a853; }
+    .ag-status.err { color: #ea4335; }
+  </style>
+</head>
+<body>
+  <h2>추적할 서비스</h2>
+  <label><input type="checkbox" id="p-claude" /> Claude (claude.ai)</label>
+  <label><input type="checkbox" id="p-codex" /> Codex (chatgpt.com)</label>
+  <label><input type="checkbox" id="p-antigravity" /> Antigravity (Google)</label>
+
+  <h2>폴링 주기</h2>
+  <label>
+    <select id="pollMinutes">
+      <option value="1">1분</option>
+      <option value="2">2분</option>
+      <option value="5">5분</option>
+      <option value="10">10분</option>
+      <option value="15">15분</option>
+    </select>
+    마다 사용량 확인
+  </label>
+
+  <h2>경고 기준</h2>
+  <label>주의 <input type="number" id="warnPct" min="1" max="99" />% 이상</label>
+  <label>위험 <input type="number" id="critPct" min="1" max="100" />% 이상</label>
+
+  <h2>알림</h2>
+  <label><input type="checkbox" id="notify" /> 기준을 넘으면 데스크톱 알림 보내기</label>
+
+  <h2>Antigravity 연결</h2>
+  <p class="hint">
+    Antigravity 쿼터는 웹 페이지가 없어서, Google 계정 OAuth 연결을 통해
+    Antigravity와 같은 API에서 직접 읽어옵니다.
+  </p>
+  <div class="ag-status" id="ag-status">연결 안 됨</div>
+  <button id="ag-connect">Google 계정 연결</button>
+  <button id="ag-disconnect" hidden>연결 해제</button>
+
+  <div class="saved" id="saved">저장됨</div>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

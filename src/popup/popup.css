@@ -1,0 +1,112 @@
+:root {
+  color-scheme: dark;
+  --bg: #16181d;
+  --card: #1f2229;
+  --border: #2c3038;
+  --text: #e8eaed;
+  --muted: #9aa0a6;
+  --ok: #34a853;
+  --warn: #f9ab00;
+  --crit: #ea4335;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  width: 340px;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.5 -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 8px;
+}
+
+h1 { font-size: 14px; font-weight: 600; }
+
+#refresh {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+#refresh:hover { background: var(--card); color: var(--text); }
+#refresh.spinning { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+main { padding: 0 10px; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 6px;
+}
+
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.pname { font-weight: 600; }
+.plan {
+  font-size: 11px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 0 7px;
+}
+
+.window { margin: 8px 0 2px; }
+
+.wrow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 3px;
+}
+.wlabel { color: var(--muted); }
+.wpct { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+.bar {
+  height: 6px;
+  background: #0e1013;
+  border-radius: 99px;
+  overflow: hidden;
+}
+.fill { height: 100%; border-radius: 99px; transition: width 0.3s; }
+
+.reset { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+.err { color: var(--muted); font-size: 12px; padding: 2px 0 4px; }
+
+.cta {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #8ab4f8;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 14px 12px;
+  font-size: 11px;
+  color: var(--muted);
+}
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--text); }
