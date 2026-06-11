@@ -18,8 +18,8 @@ async function rawFetch(url, init = {}) {
   }
 }
 
-// 해당 사이트 탭이 열려 있으면 그 탭의 페이지 컨텍스트에서 같은 출처(fetch)로 요청.
-// Cloudflare 등이 확장 컨텍스트 요청을 막을 때의 검증된 우회 경로.
+// If a tab of that site is open, request from the page context of that tab (same origin).
+// A verified bypass path when Cloudflare, etc., blocks requests from the extension context.
 async function fetchViaOpenTab(tabUrlPattern, url, init = {}) {
   try {
     const tabs = await chrome.tabs.query({ url: tabUrlPattern });
@@ -49,10 +49,10 @@ async function fetchViaOpenTab(tabUrlPattern, url, init = {}) {
 
 function throwForStatus(status, body) {
   if (status === 401 || status === 403) {
-    throw new ProviderError('auth', `로그인 또는 보안 확인이 필요합니다 (HTTP ${status})`);
+    throw new ProviderError('auth', `Login or security check required (HTTP ${status})`);
   }
   if (status === 404) throw new ProviderError('notfound', 'HTTP 404');
-  if (status === 0) throw new ProviderError('network', `네트워크 오류: ${body}`);
+  if (status === 0) throw new ProviderError('network', `Network error: ${body}`);
   if (status < 200 || status >= 300) throw new ProviderError('network', `HTTP ${status}`);
 }
 
@@ -60,7 +60,7 @@ function parseJson(body) {
   try {
     return JSON.parse(body);
   } catch {
-    throw new ProviderError('parse', '응답 파싱 실패 — 로그인 페이지로 리디렉션됐을 수 있습니다');
+    throw new ProviderError('parse', 'Failed to parse response — might have been redirected to the login page');
   }
 }
 
@@ -75,8 +75,8 @@ function looksLikeJson(body) {
   return s.startsWith('{') || s.startsWith('[');
 }
 
-// 서비스 워커 직접 fetch가 403/네트워크 오류, 또는 JSON이 아닌 응답(로그인·보안 HTML이
-// 200으로 오는 경우)이면 열린 탭을 통해 재시도한다.
+// If direct fetch from the service worker fails with 403/network error, or returns a non-JSON response 
+// (e.g. login/security HTML returning 200), retry via an open tab.
 export async function fetchJsonWithTabFallback(url, tabUrlPattern, init = {}) {
   let { status, body } = await rawFetch(url, init);
   if (status === 403 || status === 0 || (status >= 200 && status < 300 && !looksLikeJson(body))) {

@@ -1,34 +1,34 @@
-# 동작 방식 (Architecture)
+# Architecture
 
-이 문서는 LLM Quota Monitor 확장이 각 서비스의 사용량을 **어떻게** 읽어오는지, 그리고 내부 구성요소가 어떻게 맞물려 도는지를 설명합니다.
+This document describes **how** the LLM Quota Monitor extension fetches usage data from each service and how its internal components work together.
 
 ---
 
-## 1. 큰 그림
+## 1. Big Picture
 
 ```
                         ┌─────────────────────────────────────┐
    chrome.alarms ──────▶│        background.js (SW)           │
-   팝업 열기 / 옵션 변경  │  refreshAll() → 각 provider 폴링      │
+   Open Popup / Options │  refreshAll() → Poll each provider  │
                         └───────────────┬─────────────────────┘
                                         │ fetchUsage()
                 ┌───────────────────────┼───────────────────────┐
                 ▼                       ▼                       ▼
           claude.js               codex.js               antigravity.js
-        (쿠키 세션)            (NextAuth 토큰)         (Google OAuth + UA)
+       (Cookie Session)       (NextAuth Token)       (Google OAuth + UA)
                 │                       │                       │
                 ▼                       ▼                       ▼
-        claude.ai 내부 API      chatgpt.com wham API    cloudcode-pa API
+        claude.ai Internal API  chatgpt.com wham API    cloudcode-pa API
                                         │
                                         ▼
                         snapshots → chrome.storage.local
                                         │
                         ┌───────────────┼───────────────┐
                         ▼               ▼               ▼
-                      배지            팝업 카드         알림
+                      Badge         Popup Cards     Notification
 ```
 
-모든 provider는 동일한 **어댑터 계약**을 따릅니다 (`providers/index.js`):
+All providers follow the same **adapter contract** (`providers/index.js`):
 
 ```js
 {
@@ -37,158 +37,156 @@
     plan: string | null,
     windows: [{ id, label, usedPct (0~100), resetAt (epoch ms | null) }],
   }
-  // 실패 시 ProviderError(type: 'auth' | 'network' | 'parse' | 'notfound') throw
+  // Throws ProviderError(type: 'auth' | 'network' | 'parse' | 'notfound' | 'unsupported') on failure
 }
 ```
 
-`background.js`는 provider가 무엇인지 몰라도 됩니다 — 그냥 `fetchUsage()`를 부르고, 돌아온 `windows`로 배지/팝업/알림을 그립니다. 새 서비스를 추가하려면 어댑터 파일 하나 만들고 `index.js`에 등록하면 끝입니다.
+`background.js` does not need to know the details of each provider — it simply calls `fetchUsage()` and uses the returned `windows` to update the badge, popups, and notifications. Adding a new service is as simple as creating an adapter file and registering it in `index.js`.
 
 ---
 
-## 2. 폴링 & 표시 파이프라인 (`background.js`)
+## 2. Polling & Display Pipeline (`background.js`)
 
-1. **스케줄링** — `chrome.alarms`로 N분(기본 5분)마다 `refreshAll()` 호출. 팝업을 열거나 옵션을 바꿔도 즉시 1회 폴링합니다. 알람과 팝업 폴링이 겹쳐도 `refreshing` 가드로 한 번만 실행됩니다.
-2. **수집** — 켜져 있는 provider들의 `fetchUsage()`를 `Promise.all`로 병렬 호출. 성공/실패 결과를 `snapshots[providerId]`에 저장 (`{ at, ok, plan, windows }` 또는 `{ ok:false, errorType, message }`).
-3. **배지** — 전체 윈도우 중 **가장 높은 사용률**을 배지 숫자로 표시. `warnPct`(기본 75) 이상 주황, `critPct`(기본 90) 이상 빨강. 사용량이 하나도 없고 인증 오류만 있으면 `!` 표시.
-4. **알림** — 사용률이 경고/위험 기준을 **처음 넘는 순간**에만 1회 알림 (엣지 트리거). `notifyState`에 마지막 레벨을 기록해 매 폴링마다 반복 알림하지 않습니다.
+1. **Scheduling** — `chrome.alarms` calls `refreshAll()` every N minutes (default: 5 minutes). Opening the popup or changing options triggers an immediate poll. If an alarm poll overlaps with a popup poll, the `refreshing` guard ensures only one execution runs.
+2. **Collection** — Calls `fetchUsage()` for all enabled providers in parallel using `Promise.all`. The successful or failed results are saved to `snapshots[providerId]` (`{ at, ok, plan, windows }` or `{ ok: false, errorType, message }`).
+3. **Badge** — Displays the **highest usage percentage** across all windows as a badge number. It turns orange at `warnPct` (default: 75%) and red at `critPct` (default: 90%). If there is no usage data but an authentication error exists, it displays `!`.
+4. **Notification** — Sends a desktop notification **only the first time** the usage crosses a threshold level (edge-triggered). The last level is recorded in `notifyState` to prevent repeated notifications on every poll.
 
 ---
 
-## 3. 공통 HTTP 레이어 (`providers/http.js`)
+## 3. Common HTTP Layer (`providers/http.js`)
 
-Claude와 Codex는 **브라우저에 저장된 세션 쿠키**로 인증합니다. 서비스 워커의 `fetch(..., { credentials: 'include' })`가 쿠키를 자동으로 싣습니다.
+Claude and Codex authenticate using the **browser-stored session cookies**. The service worker's `fetch(..., { credentials: 'include' })` automatically includes these cookies.
 
-문제는 **Cloudflare** 등이 확장 컨텍스트에서 나온 요청을 막을 수 있다는 것. 이를 위해 `fetchJsonWithTabFallback()`이 있습니다:
+However, security protections like **Cloudflare** can block requests originating from the extension context. To bypass this, `fetchJsonWithTabFallback()` is implemented:
 
-1. 먼저 서비스 워커에서 직접 `fetch`.
-2. `403`(보안 차단) 또는 `0`(네트워크 오류)이면 → **이미 열려 있는 해당 사이트 탭**을 찾아 `chrome.scripting.executeScript`로 그 페이지 컨텍스트에서 같은 출처 `fetch`를 실행. 진짜 브라우저 탭에서 나간 요청이라 Cloudflare를 통과합니다.
-3. 그래도 안 되면 `ProviderError`를 던지고, 팝업이 "로그인하러 가기" 링크를 띄웁니다.
+1. The service worker first performs a direct `fetch`.
+2. If it encounters a `403` (security block) or `0` (network error), it searches for an **already open tab of the respective site** and runs `chrome.scripting.executeScript` to execute the same origin `fetch` inside the page context. Because the request originates from a real browser tab, it successfully bypasses Cloudflare.
+3. If it still fails, it throws a `ProviderError`, and the popup displays a "Go to Login" link.
 
-`ProviderError.type`은 `auth | network | parse | notfound`로 분류되어 UI가 상황에 맞는 안내를 보여줍니다.
+`ProviderError.type` is classified into `auth | network | parse | notfound | unsupported` so that the UI can guide the user appropriately.
 
 ---
 
 ## 4. Claude (`providers/claude.js`)
 
-> 출처: `claude.ai/api/organizations/{org}/usage` — 설정 → 사용량 페이지가 쓰는 바로 그 내부 API
+> Source: `claude.ai/api/organizations/${org}/usage` — the exact same internal API used by Settings -> Usage page.
 
-**조직(org) 발견**
-- `claude.ai/api/organizations`로 소속 조직 목록을 받습니다.
-- `capabilities`가 `['api']`뿐인 조직(API 콘솔 전용, 플랜 한도 없음)은 제외.
-- claude.ai가 활성 조직 UUID를 기록하는 `lastActiveOrg` 쿠키를 읽어 **설정 화면과 동일한 조직**을 선택. 쿠키가 없으면 `chat` 기능이 있는 조직 → 첫 조직 순으로 폴백.
-- 결과는 24시간 캐시. 조직을 떠나서 `404`가 나면 캐시를 비우고 1회 재발견.
+**Organization (org) Discovery**
+- Fetches the user's organization list from `claude.ai/api/organizations`.
+- Excludes organizations with only `['api']` capabilities (API console only, no plan limits).
+- Reads the `lastActiveOrg` cookie, where claude.ai records the active organization UUID, to match the **exact organization selected in the settings UI**. If the cookie is missing, it falls back to an organization with `chat` capabilities, and then to the first organization.
+- Results are cached for 24 hours. If a `404` error occurs because the user left the organization, the cache is cleared and rediscovered once.
 
-**사용량 파싱**
-- `utilization`(사용률 %)과 `resets_at`(리셋 시각)을 가진 윈도우들을 추출:
-  - `five_hour` — 세션 (5시간)
-  - `seven_day` — 주간 (전체)
-  - `seven_day_opus` / `seven_day_sonnet` / `seven_day_oauth_apps` — 모델·앱별 주간
-- 플랜에 없는 윈도우는 응답에 없으므로 자동으로 건너뜁니다.
-- 플랜 라벨은 `rate_limit_tier`에서 추론 (`max_20x` → Max 20x, `pro` → Pro 등).
+**Usage Parsing**
+- Extracts windows containing `utilization` (usage %) and `resets_at` (reset time):
+  - `five_hour` — Session (5h)
+  - `seven_day` — Weekly (Total)
+  - `seven_day_opus` / `seven_day_sonnet` / `seven_day_oauth_apps` — Weekly limits per model or app
+- Windows not available in the user's plan are absent from the response and automatically skipped.
+- The plan label is inferred from `rate_limit_tier` (`max_20x` -> Max 20x, `pro` -> Pro, etc.).
 
-이 수치는 **Claude Code 사용분을 포함한 통합 사용량**입니다.
+These figures represent **integrated usage including Claude Code usage**.
 
 ---
 
 ## 5. Codex (`providers/codex.js`)
 
-> 출처: `chatgpt.com/backend-api/wham/usage`
+> Source: `chatgpt.com/backend-api/wham/usage`
 
-**2단계 인증**
-1. `chatgpt.com/api/auth/session`(NextAuth)에서 `accessToken`을 꺼냅니다 — 쿠키 세션 기반.
-2. 그 토큰을 `Authorization: Bearer ...`로 실어 `wham/usage`를 호출.
+**2-Step Authentication**
+1. Extracts `accessToken` from `chatgpt.com/api/auth/session` (NextAuth) — based on the cookie session.
+2. Calls `wham/usage` by passing the token in `Authorization: Bearer ...`.
 
-**사용량 파싱**
-- `rate_limit.primary_window` → 세션(5시간), `rate_limit.secondary_window` → 주간.
-- 각 윈도우의 `used_percent`, 리셋은 `reset_at`(epoch 초) 또는 `reset_after_seconds`(상대) 둘 다 처리.
-- 윈도우 라벨은 `limit_window_seconds`로 자동 판별 (1일 미만이면 "세션 N시간", 7일 근처면 "주간").
-- 플랜 라벨은 `plan_type`.
+**Usage Parsing**
+- `rate_limit.primary_window` -> Session (5h), `rate_limit.secondary_window` -> Weekly.
+- Handles `used_percent` for each window. Handles resets via both `reset_at` (epoch seconds) and `reset_after_seconds` (relative offset).
+- Automatically determines window labels from `limit_window_seconds` (less than 1 day is labeled "Session Nh", near 7 days is labeled "Weekly").
+- The plan label is mapped from `plan_type`.
 
-`wham/usage`가 Cloudflare `403`을 내면 위의 **열린 탭 폴백**으로 재시도합니다. 그래도 막히면 chatgpt.com에 한 번 방문(로그인/보안 확인)하면 풀립니다.
+If `wham/usage` returns a Cloudflare `403`, it retries using the **open tab fallback** described above. If still blocked, visiting chatgpt.com once (for login or security challenge) will resolve it.
 
 ---
 
 ## 6. Antigravity (`providers/antigravity.js` + `antigravity-auth.js`)
 
-Antigravity는 다른 둘과 근본적으로 다릅니다. **쿠키로 접근 가능한 웹 사용량 페이지가 없습니다.** 대신 Antigravity IDE가 쓰는 것과 같은 비공개 **Cloud Code API**(`cloudcode-pa.googleapis.com`)를 확장이 직접 OAuth로 호출합니다.
+Antigravity is fundamentally different from the other two. **It does not have a web-accessible page for checking usage via cookies.** Instead, the extension directly calls the private **Cloud Code API** (`cloudcode-pa.googleapis.com`) used by the Antigravity IDE via Google OAuth.
 
-### 6.1 OAuth 연결 (`antigravity-auth.js`)
+### 6.1 OAuth Connection (`antigravity-auth.js`)
 
-표준 **Authorization Code + PKCE** 흐름이되, Chrome 확장 환경에 맞춘 트릭이 들어갑니다.
+The extension uses the standard **Authorization Code + PKCE** flow, tailored with a few tricks for the Chrome extension environment:
 
-1. 옵션 페이지에서 "Google 계정 연결" → `startConnect()`가 PKCE `code_verifier`/`code_challenge`를 만들어 `agPendingAuth`에 저장하고, Google 동의 화면 탭을 엽니다.
-2. 리디렉션 URI는 `http://127.0.0.1:51121/` (installed-app 클라이언트라 임의 루프백 포트/경로 허용). **아무도 listen하지 않으므로 페이지 자체는 실패**하지만, 그 직전 탭의 URL에 `?code=...`가 실립니다.
-3. `chrome.tabs.onUpdated` 리스너가 그 리디렉션 탭을 감지해 **URL에서 `code`를 가로채고** 탭을 닫습니다.
-4. `code` + `code_verifier`로 토큰을 교환해 `agTokens`(refresh/access)를 `chrome.storage.local`에 저장. access token이 만료되면 refresh token으로 갱신합니다.
+1. Clicking "Connect Google Account" in options -> `startConnect()` generates a PKCE `code_verifier`/`code_challenge`, stores it in `agPendingAuth`, and opens the Google OAuth consent screen tab.
+2. The redirect URI is `http://127.0.0.1:51121/` (an arbitrary loopback port allowed for installed-app clients). **Although the page itself fails to load because nothing is listening, the `?code=...` query is appended to the tab URL.**
+3. A `chrome.tabs.onUpdated` listener detects this redirect tab, **captures the `code` from the URL**, and closes the tab.
+4. Exchanges the `code` + `code_verifier` for tokens, storing `agTokens` (refresh/access) in `chrome.storage.local`. If the access token expires, it is automatically renewed using the refresh token.
 
-> **왜 PKCE가 필수인가:** 이 OAuth 클라이언트는 `code_verifier` 없이 토큰을 교환하면 `400`으로 거부합니다.
+> **Why PKCE is mandatory:** The OAuth client will reject token exchange requests with a `400` error if `code_verifier` is missing.
 
-> **왜 이 클라이언트인가:** 쿼터 API(`fetchAvailableModels`)는 **Antigravity 자체 OAuth 클라이언트**(`1071006060591-...`, IDE 바이너리에서 추출한 공개 installed-app 클라이언트)로 발급된 토큰에만 권한을 줍니다. gemini-cli 등 다른 클라이언트 토큰은 `loadCodeAssist`는 통과해도 `fetchAvailableModels`에서 `403`이 납니다. (GCP ToS 사용자용 클라이언트 `884354919052-...`는 별개지만, 대다수 사용자 = 비-GcpTos이므로 전자를 기본값으로 씁니다.)
+> **Why this specific client is used:** The quota API (`fetchAvailableModels`) only grants permissions to tokens generated by the **Antigravity OAuth client** (`1071006060591-...`, the public installed-app client extracted from the IDE binary). Using other client tokens, such as gemini-cli, will successfully call `loadCodeAssist` but return `403` on `fetchAvailableModels`. (The GCP ToS client `884354919052-...` is separate, but because the majority of users are non-GcpTos, we use the former as default.)
 
-### 6.2 쿼터 조회 (`antigravity.js`)
+### 6.2 Quota Fetching (`antigravity.js`)
 
-1. **`loadCodeAssist`** — 사용자의 관리형 GCP 프로젝트 ID와 요금제(tier)를 받습니다. 24시간 캐시(`agProject`).
-2. **`fetchAvailableModels`** — 모델별 쿼터(`quotaInfo.remainingFraction`, `resetTime`, `isExhausted`)를 받습니다.
+1. **`loadCodeAssist`** — Retrieves the user's managed GCP project ID and billing tier. Cached for 24 hours (`agProject`).
+2. **`fetchAvailableModels`** — Fetches remaining quotas per model (`quotaInfo.remainingFraction`, `resetTime`, `isExhausted`).
 
-### 6.3 ⚠️ User-Agent 게이트 (핵심)
+### 6.3 ⚠️ User-Agent Gate (Crucial)
 
-`fetchAvailableModels`는 **`User-Agent: antigravity/<버전> <OS>/<arch>` 헤더로 온 요청에만 200을 주고, 그 외(브라우저 기본 UA 등)에는 `403 PERMISSION_DENIED`를 반환합니다.** 올바른 OAuth 클라이언트 토큰만으로는 부족하고, **클라이언트 + User-Agent 두 조건이 모두** 충족돼야 합니다.
+**The `fetchAvailableModels` endpoint returns 200 only if the request has the `User-Agent: antigravity/<version> <OS>/<arch>` header; otherwise, it returns `403 PERMISSION_DENIED`.** A valid OAuth token is not enough; **both the correct client token and the correct User-Agent** are required.
 
-그런데 **Chrome 확장의 `fetch()`는 `User-Agent`를 바꿀 수 없습니다** (forbidden header). MV3에서는 이를 `declarativeNetRequest` **동적 규칙**으로 우회합니다 (`background.js`의 `ensureAntigravityUserAgent()`):
+However, **Chrome extension `fetch()` calls cannot modify the `User-Agent` header** (it is a forbidden header). Under MV3, this is bypassed using `declarativeNetRequest` **dynamic rules** (`ensureAntigravityUserAgent()` in `background.js`):
 
 ```
-condition: cloudcode-pa.googleapis.com 로 가는 xmlhttprequest
-action:    User-Agent 헤더를 antigravity/... 로 set
+Condition: xmlhttprequest heading to cloudcode-pa.googleapis.com
+Action:    Set the User-Agent header to antigravity/...
 ```
 
-OS/arch는 실행 환경에서 추론해 채웁니다.
+The OS and architecture are inferred from the user agent of the host environment.
 
-> 이 게이트가 "계정은 연결됐는데 쿼터만 403"이라는 증상의 원인이었습니다 — `loadCodeAssist`는 UA를 따지지 않아 연결은 성공하는 것처럼 보이지만, `fetchAvailableModels`만 막혔던 것.
+> This User-Agent requirement was the reason why connection seemed successful (as `loadCodeAssist` doesn't enforce UA, returning account info) but quota queries returned `403`.
 
-### 6.4 풀(pool) 단위 표시
+### 6.4 Pool-based Display
 
-모델이 너무 많고 여러 모델이 **공유 쿼터 풀**로 묶여 있어서, 풀별 대표 사용량만 보여줍니다 (`parsePools`):
+Since there are many models and they share quota pools, the extension aggregates and displays usage by pool (`parsePools`):
 
-| 풀 | 매칭 | 라벨 |
+| Pool | Matching Logic | Label |
 |---|---|---|
-| `flash` | 이름에 `flash` | Flash |
-| `pro` | 이름에 `pro` | Pro |
-| `opus` | 이름에 `opus`/`claude`/`gpt` | Opus |
+| `flash` | Name contains `flash` | Flash |
+| `pro` | Name contains `pro` | Pro |
+| `opus` | Name contains `opus`, `claude`, or `gpt` | Opus |
 
-각 풀에서 **가장 많이 쓴(remaining이 가장 적은) 모델**을 그 풀의 대표 사용량으로 삼습니다. `remainingFraction`을 `usedPct = 100 * (1 - fraction)`으로 환산하고, `resetTime`을 리셋 시각으로 씁니다.
+The **most heavily used model (smallest remaining fraction)** in each pool represents the usage of that pool. The `remainingFraction` is converted to `usedPct = 100 * (1 - fraction)`, and `resetTime` is used for the reset countdown.
 
 ---
 
-## 7. 옵션 & 저장소
+## 7. Options & Storage
 
-`common/options.js` — `chrome.storage.sync`에 저장 (기기 간 동기화):
+`common/options.js` — stored in `chrome.storage.sync` (synced across devices):
 
-| 옵션 | 기본값 | 의미 |
+| Option | Default | Description |
 |---|---|---|
-| `providers` | 모두 on | 서비스별 on/off |
-| `pollMinutes` | 5 | 폴링 주기 (1~15분) |
-| `warnPct` | 75 | 경고 기준(주황) |
-| `critPct` | 90 | 위험 기준(빨강) |
-| `notify` | true | 데스크톱 알림 |
+| `providers` | All enabled | Toggle individual tracking services |
+| `pollMinutes` | 5 | Polling interval (1 to 15 minutes) |
+| `warnPct` | 75 | Warning threshold (turns orange) |
+| `critPct` | 90 | Critical threshold (turns red) |
+| `notify` | true | Enable desktop notifications |
 
-런타임 데이터는 `chrome.storage.local`:
+Runtime data stored in `chrome.storage.local`:
 
-| 키 | 내용 |
+| Key | Description |
 |---|---|
-| `snapshots` | provider별 최근 사용량 결과 |
-| `notifyState` | 알림 엣지 트리거 상태 |
-| `claudeOrg` | Claude 조직 캐시(24h) |
-| `agTokens` | Antigravity OAuth 토큰 |
-| `agProject` | Antigravity 프로젝트/요금제 캐시(24h) |
-| `agAccount` | 연결된 Google 계정/오류 표시용 |
-| `agPendingAuth` | 진행 중 OAuth의 PKCE verifier |
+| `snapshots` | Latest usage results per provider |
+| `notifyState` | State tracker for edge-triggered notifications |
+| `claudeOrg` | Cache for Claude organization info (24h) |
+| `agTokens` | Antigravity OAuth tokens |
+| `agProject` | Cache for Antigravity project/billing tier (24h) |
+| `agAccount` | Connected Google Account info or errors |
+| `agPendingAuth` | PKCE verifier for in-progress OAuth flows |
 
 ---
 
-## 8. 주의사항
+## 8. Caveats
 
-- 세 서비스 모두 **비공개 내부 API**라 예고 없이 바뀔 수 있습니다. 파싱은 방어적으로 되어 있고, 깨지면 팝업에 오류와 해당 서비스로 가는 링크가 뜹니다.
-- 토큰/쿠키는 외부로 전송되지 않습니다 — 요청은 각 서비스의 도메인으로만 나갑니다.
-- Antigravity 클라이언트 ID/시크릿은 IDE에서 추출한 **공개 installed-app 자격증명**입니다. 원하면 `antigravity-auth.js`에서 본인 GCP OAuth 클라이언트로 교체할 수 있지만, 그 경우 `fetchAvailableModels`의 User-Agent 게이트는 별도로 충족돼야 합니다.
-</content>
-</invoke>
+- All three services use **private internal APIs**, which may change without notice. Parsing is implemented defensively, and if an API breaks, the popup will display an error message along with a direct link to the respective service page.
+- Session tokens and cookies are never sent to external servers — all requests are sent directly to the respective service domains.
+- The Antigravity client ID/secret are **public installed-app credentials** extracted from the IDE. If desired, you can replace them in `antigravity-auth.js` with your own GCP OAuth client, but the User-Agent gate for `fetchAvailableModels` must still be satisfied.

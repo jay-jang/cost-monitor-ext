@@ -47,7 +47,7 @@ for (const key of ['claude', 'codex', 'antigravity', 'pollMinutes', 'warnPct', '
   els[key].addEventListener('change', save);
 }
 
-// --- Antigravity Google 계정 연결 ---
+// --- Antigravity Google Account Connection ---
 const agStatus = document.getElementById('ag-status');
 const agConnect = document.getElementById('ag-connect');
 const agDisconnect = document.getElementById('ag-disconnect');
@@ -55,12 +55,12 @@ const agDisconnect = document.getElementById('ag-disconnect');
 async function renderAgStatus() {
   const { agTokens, agAccount } = await chrome.storage.local.get(['agTokens', 'agAccount']);
   if (agTokens?.refreshToken) {
-    agStatus.textContent = `연결됨${agAccount?.email ? `: ${agAccount.email}` : ''}`;
+    agStatus.textContent = `Connected${agAccount?.email ? `: ${agAccount.email}` : ''}`;
     agStatus.className = 'ag-status ok';
     agConnect.hidden = true;
     agDisconnect.hidden = false;
   } else {
-    agStatus.textContent = agAccount?.error ? `연결 실패: ${agAccount.error}` : '연결 안 됨';
+    agStatus.textContent = agAccount?.error ? `Connection Failed: ${agAccount.error}` : 'Not Connected';
     agStatus.className = agAccount?.error ? 'ag-status err' : 'ag-status';
     agConnect.hidden = false;
     agDisconnect.hidden = true;

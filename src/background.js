@@ -5,8 +5,8 @@ import { initAuthListener, startConnect, disconnect } from './providers/antigrav
 
 const ALARM_NAME = 'poll-usage';
 
-// cloudcode-pa의 fetchAvailableModels는 Antigravity User-Agent로 온 요청에만 권한을 준다(그 외엔 403).
-// 확장 fetch()는 User-Agent를 못 바꾸므로(forbidden header) declarativeNetRequest로 덮어쓴다.
+// cloudcode-pa's fetchAvailableModels grants permission only to requests with an Antigravity User-Agent (otherwise returns 403).
+// Since extension fetch() cannot change the User-Agent (forbidden header), we overwrite it using declarativeNetRequest.
 const AG_UA_RULE_ID = 1;
 
 function antigravityUA() {
@@ -40,7 +40,7 @@ async function ensureAntigravityUserAgent() {
       });
     }
   } catch (e) {
-    console.error('Antigravity User-Agent 규칙 등록 실패', e);
+    console.error('Failed to register Antigravity User-Agent rule', e);
   }
 }
 
@@ -108,9 +108,9 @@ let refreshing = null;
 let pendingForce = false;
 
 function refreshAll(force = false) {
-  // 팝업 오픈과 알람이 겹쳐도 한 번만 폴링
+  // Poll only once even if popup opening and alarm overlap
   if (refreshing) {
-    // 비-force 폴링이 도는 중에 force 요청이 겹치면, 끝난 뒤 캐시 무효화 폴링을 한 번 더 보장
+    // If a force request overlaps while a non-force polling is running, guarantee one more cache-invalidating poll after it completes
     if (force) pendingForce = true;
     return refreshing;
   }
@@ -211,8 +211,8 @@ async function maybeNotify(snapshots, opts) {
         chrome.notifications.create(`${key}:${level}`, {
           type: 'basic',
           iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-          title: `${p.name} 사용량 ${Math.round(pct)}%`,
-          message: `${w.label} 한도의 ${Math.round(pct)}%를 사용했습니다. ${formatReset(w.resetAt)}`,
+          title: `${p.name} Usage ${Math.round(pct)}%`,
+          message: `Used ${Math.round(pct)}% of the ${w.label} limit. ${formatReset(w.resetAt)}`,
           priority: level === 'crit' ? 2 : 1,
         });
       }

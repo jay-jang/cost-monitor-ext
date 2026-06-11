@@ -1,13 +1,16 @@
 import { ProviderError } from './http.js';
 
-// fetchAvailableModels는 Antigravity IDE 자체 OAuth 클라이언트로 발급된 토큰만 허용한다.
-// gemini-cli 클라이언트(681255809395) 토큰은 loadCodeAssist는 통과하지만 fetchAvailableModels에서
-// 403(PERMISSION_DENIED)이 난다.
+// fetchAvailableModels only allows tokens issued to the Antigravity IDE's own OAuth client.
+// Tokens from the gemini-cli client (681255809395) pass loadCodeAssist but get 403 (PERMISSION_DENIED) in fetchAvailableModels.
 //
-// 아래 값은 Antigravity IDE 바이너리(vs/platform/cloudCode/common/oauthClient.js)에서 추출한 공개 클라이언트.
-// IDE는 GCP ToS 사용자(isGcpTos)에게는 884354919052 클라이언트를, 그 외 일반 사용자에게는
-// 1071006060591 클라이언트를 사용한다. 대다수 사용자(Google One AI Pro 포함)는 isGcpTos=false 이므로
-// 1071006060591을 기본으로 사용한다.
+// The value below is the public client extracted from the Antigravity IDE binary (vs/platform/cloudCode/common/oauthClient.js).
+// The IDE uses the 884354919052 client for GCP ToS users (isGcpTos), and the 1071006060591 client for other regular users.
+// Since the majority of users (including Google One AI Pro) have isGcpTos=false, we use 1071006060591 as default.
+//
+// NOTE: This is an installed-app (Desktop) OAuth client. Per Google's own docs, the client secret of a
+// distributed native app is NOT confidential ("the client secret is obviously not treated as a secret") —
+// it is already extractable from the IDE binary. Security here relies on PKCE + per-user consent + the
+// loopback redirect restriction, NOT on this secret. Leaking it does not expose any user's tokens or data.
 const CLIENT_ID =
   '1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com';
 const CLIENT_SECRET = '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';
@@ -18,12 +21,12 @@ const SCOPES = [
   'https://www.googleapis.com/auth/cclog',
   'https://www.googleapis.com/auth/experimentsandconfigs',
 ];
-// installed-app 클라이언트는 임의 포트의 루프백 리디렉션을 허용.
-// 아무것도 listen하지 않아 페이지는 실패하지만, 탭 URL에 실린 code를 가로채면 된다.
+// The installed-app client allows loopback redirects to arbitrary ports.
+// Although the page will fail because nothing is listening, we just need to intercept the code in the tab URL.
 export const REDIRECT_URI = 'http://127.0.0.1:51121/';
 const PENDING_TTL = 10 * 60 * 1000;
 
-// PKCE — 이 클라이언트는 code_verifier 없이는 토큰 교환이 400으로 거부된다.
+// PKCE — This client will reject token exchanges with a 400 error without code_verifier.
 function base64url(bytes) {
   let s = '';
   for (const b of bytes) s += String.fromCharCode(b);
@@ -78,7 +81,7 @@ export async function startConnect() {
 export async function disconnect() {
   const { agTokens } = await chrome.storage.local.get('agTokens');
   if (agTokens?.refreshToken) {
-    // 베스트 에포트 토큰 폐기
+    // Best effort token revocation
     fetch(
       `https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(agTokens.refreshToken)}`,
       { method: 'POST' }
@@ -87,7 +90,7 @@ export async function disconnect() {
   await chrome.storage.local.remove(['agTokens', 'agAccount', 'agProject', 'agPendingAuth']);
 }
 
-// OAuth 리디렉션 탭 감시 — background에서 1회 등록
+// Watch OAuth redirection tab — register once in background
 export function initAuthListener(onConnected) {
   chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
     const url = info.url || tab?.url;
@@ -103,7 +106,7 @@ export function initAuthListener(onConnected) {
     const code = u.searchParams.get('code');
     if (!code) {
       await chrome.storage.local.set({
-        agAccount: { error: u.searchParams.get('error') || '인증이 취소되었습니다' },
+        agAccount: { error: u.searchParams.get('error') || 'Authentication cancelled' },
       });
       return;
     }
@@ -129,12 +132,12 @@ export function initAuthListener(onConnected) {
         }).then((r) => r.json());
         email = info2.email || null;
       } catch {
-        // 이메일은 표시용일 뿐
+        // Email is for display only
       }
       await chrome.storage.local.set({ agAccount: { email } });
       onConnected?.();
     } catch (e) {
-      await chrome.storage.local.set({ agAccount: { error: `토큰 교환 실패: ${e.message}` } });
+      await chrome.storage.local.set({ agAccount: { error: `Token exchange failed: ${e.message}` } });
     }
   });
 }
@@ -142,7 +145,7 @@ export function initAuthListener(onConnected) {
 export async function getAccessToken() {
   const { agTokens } = await chrome.storage.local.get('agTokens');
   if (!agTokens?.refreshToken) {
-    throw new ProviderError('auth', '설정에서 Google 계정을 연결해 주세요');
+    throw new ProviderError('auth', 'Please connect your Google Account in Settings');
   }
   if (agTokens.accessToken && Date.now() < agTokens.expiresAt - 5 * 60 * 1000) {
     return agTokens.accessToken;
@@ -163,8 +166,8 @@ export async function getAccessToken() {
   } catch (e) {
     if (e.code === 'invalid_grant') {
       await chrome.storage.local.remove('agTokens');
-      throw new ProviderError('auth', 'Google 인증이 만료됐습니다 — 설정에서 다시 연결해 주세요');
+      throw new ProviderError('auth', 'Google authentication expired — please reconnect in Settings');
     }
-    throw new ProviderError('network', `토큰 갱신 실패: ${e.message}`);
+    throw new ProviderError('network', `Token refresh failed: ${e.message}`);
   }
 }

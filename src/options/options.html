@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>LLM Quota Monitor 설정</title>
+  <title>LLM Quota Monitor Settings</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
@@ -12,17 +12,17 @@
   <div class="container">
     <header>
       <h1>LLM Quota Monitor</h1>
-      <div class="subtitle">실시간 LLM 할당량 모니터링 환경 설정</div>
+      <div class="subtitle">Configure settings for real-time LLM quota monitoring</div>
     </header>
 
-    <!-- 1. 서비스 활성화 -->
+    <!-- 1. Tracking Services -->
     <div class="card">
-      <h2>추적 서비스 설정</h2>
+      <h2>Tracking Services</h2>
       
       <div class="setting-row">
         <div class="setting-info">
           <div class="setting-title">Claude</div>
-          <div class="setting-desc">claude.ai 계정 사용량 추적</div>
+          <div class="setting-desc">Track usage for claude.ai account</div>
         </div>
         <label class="switch">
           <input type="checkbox" id="p-claude" />
@@ -33,7 +33,7 @@
       <div class="setting-row">
         <div class="setting-info">
           <div class="setting-title">Codex (ChatGPT)</div>
-          <div class="setting-desc">chatgpt.com 계정 사용량 추적</div>
+          <div class="setting-desc">Track usage for chatgpt.com account</div>
         </div>
         <label class="switch">
           <input type="checkbox" id="p-codex" />
@@ -44,7 +44,7 @@
       <div class="setting-row">
         <div class="setting-info">
           <div class="setting-title">Antigravity</div>
-          <div class="setting-desc">Google Cloud Code API 기반 할당량 추적</div>
+          <div class="setting-desc">Track quota based on Google Cloud Code API</div>
         </div>
         <label class="switch">
           <input type="checkbox" id="p-antigravity" />
@@ -53,28 +53,28 @@
       </div>
     </div>
 
-    <!-- 2. 모니터링 및 알림 -->
+    <!-- 2. Monitoring & Notifications -->
     <div class="card">
-      <h2>모니터링 및 알림 설정</h2>
+      <h2>Monitoring & Notifications</h2>
       
       <div class="setting-row">
         <div class="setting-info">
-          <div class="setting-title">폴링 주기</div>
-          <div class="setting-desc">사용량 정보를 업데이트하는 시간 간격</div>
+          <div class="setting-title">Polling Interval</div>
+          <div class="setting-desc">Time interval to update usage information</div>
         </div>
         <select id="pollMinutes">
-          <option value="1">1분</option>
-          <option value="2">2분</option>
-          <option value="5">5분</option>
-          <option value="10">10분</option>
-          <option value="15">15분</option>
+          <option value="1">1 minute</option>
+          <option value="2">2 minutes</option>
+          <option value="5">5 minutes</option>
+          <option value="10">10 minutes</option>
+          <option value="15">15 minutes</option>
         </select>
       </div>
 
       <div class="setting-row">
         <div class="setting-info">
-          <div class="setting-title">주의(Warning) 경고선</div>
-          <div class="setting-desc">사용량이 이 값을 초과하면 주황색 배지로 표시</div>
+          <div class="setting-title">Warning Threshold</div>
+          <div class="setting-desc">Shows orange badge when usage exceeds this value</div>
         </div>
         <div class="input-group">
           <input type="number" id="warnPct" min="1" max="99" />
@@ -84,8 +84,8 @@
 
       <div class="setting-row">
         <div class="setting-info">
-          <div class="setting-title">위험(Critical) 경고선</div>
-          <div class="setting-desc">사용량이 이 값을 초과하면 빨간색 배지로 표시</div>
+          <div class="setting-title">Critical Threshold</div>
+          <div class="setting-desc">Shows red badge when usage exceeds this value</div>
         </div>
         <div class="input-group">
           <input type="number" id="critPct" min="1" max="100" />
@@ -95,8 +95,8 @@
 
       <div class="setting-row">
         <div class="setting-info">
-          <div class="setting-title">데스크톱 알림</div>
-          <div class="setting-desc">경고선 도달 시 데스크톱 알림을 발송합니다</div>
+          <div class="setting-title">Desktop Notifications</div>
+          <div class="setting-desc">Send desktop notification when threshold is reached</div>
         </div>
         <label class="switch">
           <input type="checkbox" id="notify" />
@@ -105,21 +105,21 @@
       </div>
     </div>
 
-    <!-- 3. Antigravity 연결 -->
+    <!-- 3. Antigravity Google Connection -->
     <div class="card">
-      <h2>Antigravity Google 계정 연결</h2>
+      <h2>Antigravity Google Connection</h2>
       <p class="hint">
-        Antigravity 쿼터는 전용 웹 페이지가 존재하지 않아, Google 계정 OAuth 연결을 통해 Antigravity API에서 직접 쿼터 데이터를 조회합니다.
+        Since Antigravity does not have a dedicated web page for quota info, this extension fetches quota data directly from the Antigravity API using Google OAuth connection.
       </p>
-      <div class="ag-status" id="ag-status">연결 안 됨</div>
+      <div class="ag-status" id="ag-status">Not Connected</div>
       <div class="btn-container">
-        <button id="ag-connect">Google 계정 연결</button>
-        <button id="ag-disconnect" hidden>연결 해제</button>
+        <button id="ag-connect">Connect Google Account</button>
+        <button id="ag-disconnect" hidden>Disconnect</button>
       </div>
     </div>
   </div>
 
-  <div class="saved" id="saved">설정이 성공적으로 저장되었습니다.</div>
+  <div class="saved" id="saved">Settings saved successfully.</div>
   <script type="module" src="options.js"></script>
 </body>
 </html>

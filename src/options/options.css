@@ -11,8 +11,8 @@
   --ok-color: #10b981;
   --err-color: #ef4444;
   
-  --shadow-sm: 0 4px 10px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 12px 30px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 3px 8px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 * {
@@ -25,9 +25,9 @@ body {
   background: var(--bg-gradient);
   color: var(--text-main);
   font-family: 'Plus Jakarta Sans', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  font-size: 14px;
-  line-height: 1.6;
-  padding: 40px 20px;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 24px 16px;
   min-height: 100vh;
   display: flex;
   justify-content: center;
@@ -36,17 +36,17 @@ body {
 
 .container {
   width: 100%;
-  max-width: 580px;
+  max-width: 500px;
   margin: 0 auto;
 }
 
 header {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   text-align: left;
 }
 
 h1 {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 800;
   letter-spacing: -0.02em;
   background: linear-gradient(120deg, #f3f4f6 30%, #a5b4fc 100%);
@@ -57,15 +57,15 @@ h1 {
 
 .subtitle {
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 12.5px;
 }
 
 .card {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 16px;
-  padding: 20px 24px;
-  margin-bottom: 18px;
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 12px;
   box-shadow: var(--shadow-sm);
   backdrop-filter: blur(10px);
   transition: border-color 0.2s, box-shadow 0.2s;
@@ -76,10 +76,10 @@ h1 {
 }
 
 h2 {
-  font-size: 15px;
+  font-size: 13.5px;
   font-weight: 700;
   color: #a5b4fc;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
   letter-spacing: -0.01em;
   text-transform: uppercase;
 }
@@ -89,7 +89,7 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 0;
+  padding: 10px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 .setting-row:last-child {
@@ -103,14 +103,14 @@ h2 {
 .setting-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 .setting-title {
   font-weight: 600;
   color: var(--text-main);
 }
 .setting-desc {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--text-muted);
 }
 
@@ -118,8 +118,8 @@ h2 {
 .switch {
   position: relative;
   display: inline-block;
-  width: 42px;
-  height: 22px;
+  width: 36px;
+  height: 20px;
   flex-shrink: 0;
 }
 .switch input {
@@ -139,8 +139,8 @@ h2 {
 .slider:before {
   position: absolute;
   content: "";
-  height: 16px;
-  width: 16px;
+  height: 14px;
+  width: 14px;
   left: 2px;
   bottom: 2px;
   background-color: #fff;
@@ -153,7 +153,7 @@ input:checked + .slider {
   border-color: var(--accent-hover);
 }
 input:checked + .slider:before {
-  transform: translateX(20px);
+  transform: translateX(16px);
 }
 
 /* General Controls */
@@ -161,10 +161,10 @@ select, input[type="number"] {
   background: rgba(0, 0, 0, 0.2);
   color: var(--text-main);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 6px 12px;
+  border-radius: 6px;
+  padding: 4px 10px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 12.5px;
   transition: border-color 0.2s, focus 0.2s;
   outline: none;
 }
@@ -172,30 +172,30 @@ select:focus, input[type="number"]:focus {
   border-color: var(--accent-color);
 }
 input[type="number"] {
-  width: 70px;
+  width: 60px;
   text-align: center;
 }
 
 .input-group {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .hint {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.5;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 /* Antigravity Area */
 .ag-status {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 10px 14px;
-  border-radius: 8px;
-  margin-bottom: 16px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -205,8 +205,8 @@ input[type="number"] {
 .ag-status::before {
   content: "";
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--text-muted);
 }
@@ -231,16 +231,16 @@ input[type="number"] {
 
 .btn-container {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 button {
   background: var(--accent-color);
   color: #fff;
   border: none;
-  border-radius: 8px;
-  padding: 8px 16px;
-  font-size: 13px;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -270,8 +270,8 @@ button#ag-disconnect:hover {
   background: #10b981;
   color: #fff;
   font-weight: 600;
-  font-size: 13px;
-  padding: 10px 20px;
+  font-size: 12.5px;
+  padding: 8px 16px;
   border-radius: 30px;
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
   opacity: 0;

@@ -5,7 +5,7 @@ import { getAccessToken } from './antigravity-auth.js';
 const BASE = 'https://cloudcode-pa.googleapis.com/v1internal';
 const CLIENT_METADATA = { ideName: 'antigravity', ideType: 'ANTIGRAVITY' };
 
-// 모델들이 공유 풀로 묶여 있음 — 풀별 대표 사용량만 표시
+// Models are grouped into shared pools — only display representative usage per pool
 const POOLS = [
   { id: 'flash', label: 'Flash', match: (k) => /flash/.test(k) },
   { id: 'pro', label: 'Pro', match: (k) => /pro/.test(k) },
@@ -24,10 +24,10 @@ async function postJson(path, body, token) {
       body: JSON.stringify(body),
     });
   } catch (e) {
-    throw new ProviderError('network', `네트워크 오류: ${e.message}`);
+    throw new ProviderError('network', `Network error: ${e.message}`);
   }
   if (res.status === 401 || res.status === 403) {
-    throw new ProviderError('auth', 'Google 인증이 거부됐습니다 — 설정에서 다시 연결해 주세요');
+    throw new ProviderError('auth', 'Google authentication denied — please reconnect in Settings');
   }
   if (!res.ok) throw new ProviderError('network', `HTTP ${res.status}`);
   return res.json();
@@ -64,7 +64,7 @@ function parsePools(models) {
 
   const windows = [];
   for (const pool of POOLS) {
-    let best = null; // 풀 안에서 가장 빡빡한(많이 쓴) 모델이 풀의 사용량을 대표
+    let best = null; // The tightest (most used) model within the pool represents the pool usage
     for (const [key, model] of entries) {
       if (!pool.match(String(key).toLowerCase())) continue;
       const q = model?.quotaInfo;
@@ -98,7 +98,7 @@ export const antigravity = {
   name: 'Antigravity',
   color: '#4285f4',
   loginUrl: 'https://antigravity.google/',
-  authCta: 'options', // 인증 오류 시 옵션 페이지에서 Google 계정 연결
+  authCta: 'options', // Connect Google account in options page on auth error
 
   async fetchUsage() {
     const token = await getAccessToken();
@@ -111,7 +111,7 @@ export const antigravity = {
 
     const windows = parsePools(data?.models);
     if (windows.length === 0) {
-      throw new ProviderError('parse', '쿼터 정보를 찾지 못했습니다');
+      throw new ProviderError('parse', 'Quota info not found');
     }
     return { plan: info.tier, windows };
   },

@@ -24,7 +24,7 @@ async function refresh() {
   try {
     await chrome.runtime.sendMessage({ type: 'refresh', force: true });
   } catch {
-    // 서비스 워커가 깨어나는 중이면 메시지가 유실될 수 있음 — storage 이벤트로 갱신됨
+    // Message might be lost if the service worker is waking up — will be updated by storage event
   } finally {
     refreshBtn.classList.remove('spinning');
   }
@@ -54,7 +54,7 @@ async function render(snapshots) {
     const dot = document.createElement('span');
     dot.className = 'dot';
     dot.style.background = p.color;
-    dot.style.boxShadow = `0 0 8px ${p.color}`;
+    dot.style.boxShadow = `0 0 6px ${p.color}`;
     const name = document.createElement('span');
     name.className = 'pname';
     name.textContent = p.name;
@@ -70,20 +70,20 @@ async function render(snapshots) {
     if (!snap) {
       const err = document.createElement('div');
       err.className = 'err';
-      err.textContent = '아직 조회 전입니다';
+      err.textContent = 'No data fetched yet';
       card.append(err);
     } else if (!snap.ok) {
       latest = Math.max(latest, snap.at || 0);
       const err = document.createElement('div');
       err.className = 'err';
-      err.textContent = snap.message || '조회 실패';
+      err.textContent = snap.message || 'Fetch failed';
       card.append(err);
       if (snap.errorType === 'auth' && p.authCta === 'options') {
-        card.append(makeCta('설정에서 Google 계정 연결 →', () => chrome.runtime.openOptionsPage()));
+        card.append(makeCta('Connect Google Account in Settings →', () => chrome.runtime.openOptionsPage()));
       } else if (snap.errorType === 'auth') {
-        card.append(makeCta('로그인하러 가기 →', () => chrome.tabs.create({ url: p.loginUrl })));
+        card.append(makeCta('Go to Login →', () => chrome.tabs.create({ url: p.loginUrl })));
       } else if (snap.errorType === 'unsupported') {
-        card.append(makeCta('서비스 페이지 열기 →', () => chrome.tabs.create({ url: p.loginUrl })));
+        card.append(makeCta('Open Service Page →', () => chrome.tabs.create({ url: p.loginUrl })));
       }
     } else {
       latest = Math.max(latest, snap.at || 0);
@@ -101,7 +101,7 @@ async function render(snapshots) {
         label.textContent = w.label;
         const val = document.createElement('span');
         val.className = 'wpct';
-        val.textContent = `남음 ${Math.round(100 - pct)}%`;
+        val.textContent = `${Math.round(100 - pct)}% left`;
         row.append(label, val);
 
         const bar = document.createElement('div');
@@ -126,7 +126,7 @@ async function render(snapshots) {
     cardsEl.append(card);
   }
 
-  updatedEl.textContent = latest ? `업데이트: ${formatAgo(latest)}` : '';
+  updatedEl.textContent = latest ? `Updated: ${formatAgo(latest)}` : '';
 }
 
 function makeCta(text, onClick) {

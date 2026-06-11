@@ -3,13 +3,13 @@ import { clampPct } from '../common/format.js';
 
 const ORG_CACHE_TTL = 24 * 60 * 60 * 1000;
 
-// 응답 윈도우 키 → 표시 라벨 (null 윈도우는 해당 플랜에 없음 — 건너뜀)
+// Response window key -> display label (null windows are not in that plan - skipped)
 const WINDOW_LABELS = [
-  ['five_hour', '세션 (5시간)'],
-  ['seven_day', '주간 (전체)'],
-  ['seven_day_opus', '주간 (Opus)'],
-  ['seven_day_sonnet', '주간 (Sonnet)'],
-  ['seven_day_oauth_apps', '주간 (OAuth 앱)'],
+  ['five_hour', 'Session (5h)'],
+  ['seven_day', 'Weekly (Total)'],
+  ['seven_day_opus', 'Weekly (Opus)'],
+  ['seven_day_sonnet', 'Weekly (Sonnet)'],
+  ['seven_day_oauth_apps', 'Weekly (OAuth Apps)'],
 ];
 
 function planFromTier(tier = '', capabilities = []) {
@@ -26,22 +26,22 @@ async function discoverOrg() {
     'https://claude.ai/*'
   );
   if (!Array.isArray(orgs) || orgs.length === 0) {
-    throw new ProviderError('auth', 'claude.ai 조직 정보를 찾을 수 없습니다');
+    throw new ProviderError('auth', 'claude.ai organization info not found');
   }
-  // API 콘솔 전용 조직(capabilities == ['api'])은 플랜 한도가 없음
+  // Organizations for API console only (capabilities == ['api']) do not have plan limits
   const usable = orgs.filter((o) => {
     const caps = o.capabilities || [];
     return !(caps.length === 1 && caps[0] === 'api');
   });
   const candidates = usable.length ? usable : orgs;
 
-  // claude.ai가 활성 조직 uuid를 lastActiveOrg 쿠키에 기록함 — 설정 화면과 일치
+  // claude.ai records the active organization uuid in lastActiveOrg cookie — matches settings UI
   let active = null;
   try {
     const cookie = await chrome.cookies.get({ url: 'https://claude.ai', name: 'lastActiveOrg' });
     if (cookie?.value) active = candidates.find((o) => o.uuid === cookie.value);
   } catch {
-    // cookies 권한 문제 등은 무시하고 휴리스틱으로
+    // Ignore cookie permission issues etc. and fall back to heuristics
   }
   const org =
     active ||
@@ -93,7 +93,7 @@ export const claude = {
         'https://claude.ai/*'
       );
     } catch (e) {
-      // 조직을 떠났거나 전환한 경우 — 캐시 비우고 한 번 재발견
+      // In case they left or switched organization — clear cache and rediscover
       if (e.type !== 'notfound') throw e;
       org = await getOrg(true);
       data = await fetchJsonWithTabFallback(
@@ -104,7 +104,7 @@ export const claude = {
 
     const windows = parseWindows(data);
     if (windows.length === 0) {
-      throw new ProviderError('parse', '사용량 필드를 찾지 못했습니다');
+      throw new ProviderError('parse', 'Usage fields not found');
     }
     return { plan: org.plan, windows };
   },
