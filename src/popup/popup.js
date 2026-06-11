@@ -96,35 +96,36 @@ async function render(snapshots) {
         const win = document.createElement('div');
         win.className = 'win';
 
-        const main = document.createElement('div');
-        main.className = 'wmain';
-
+        const top = document.createElement('div');
+        top.className = 'wtop';
         const label = document.createElement('span');
         label.className = 'wlabel';
         label.textContent = w.label;
         label.title = w.label;
+        const val = document.createElement('span');
+        val.className = `wpct ${sev}`;
+        val.textContent = `${left}%`;
+        top.append(label, val);
 
+        const barRow = document.createElement('div');
+        barRow.className = 'wbar-row';
         const bar = document.createElement('div');
         bar.className = 'bar';
         const fill = document.createElement('div');
         fill.className = `fill ${sev}`;
         fill.style.width = `${left}%`; // fuel gauge — bar length is the remaining quota
         bar.append(fill);
-
-        const val = document.createElement('span');
-        val.className = `wpct ${sev}`;
-        val.textContent = `${left}%`;
-
-        main.append(label, bar, val);
-        win.append(main);
+        barRow.append(bar);
 
         const resetText = formatReset(w.resetAt);
         if (resetText) {
-          const reset = document.createElement('div');
+          const reset = document.createElement('span');
           reset.className = 'wreset';
           reset.textContent = resetText;
-          win.append(reset);
+          barRow.append(reset);
         }
+
+        win.append(top, barRow);
         card.append(win);
       }
     }
