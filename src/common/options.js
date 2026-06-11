@@ -4,6 +4,9 @@ export const DEFAULT_OPTIONS = {
   warnPct: 75,
   critPct: 90,
   notify: true,
+  themeMode: 'dark',
+  themeDark: 'midnight',
+  themeLight: 'classic',
 };
 
 export async function getOptions() {

@@ -40,6 +40,8 @@ let cachedOpts = null;
 
 async function render(snapshots) {
   const opts = cachedOpts || (cachedOpts = await getOptions());
+  document.documentElement.setAttribute('data-theme-mode', opts.themeMode);
+  document.documentElement.setAttribute('data-theme-name', opts.themeMode === 'dark' ? opts.themeDark : opts.themeLight);
   cardsEl.textContent = '';
   let latest = 0;
 

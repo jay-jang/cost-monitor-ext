@@ -105,7 +105,47 @@
       </div>
     </div>
 
-    <!-- 3. Antigravity Google Connection -->
+    <!-- UI Theme Settings -->
+    <div class="card">
+      <h2>UI Theme Settings</h2>
+      
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-title">Theme Mode</div>
+          <div class="setting-desc">Choose between Dark and Light mode</div>
+        </div>
+        <select id="themeMode">
+          <option value="dark">Dark Mode</option>
+          <option value="light">Light Mode</option>
+        </select>
+      </div>
+
+      <div class="setting-row" id="theme-dark-row">
+        <div class="setting-info">
+          <div class="setting-title">Dark Theme Style</div>
+          <div class="setting-desc">Select a style for Dark Mode</div>
+        </div>
+        <select id="themeDark">
+          <option value="midnight">Midnight (Deep Blue-Black)</option>
+          <option value="amoled">Amoled (Pure Black)</option>
+          <option value="cyberpunk">Cyberpunk (Neon Violet)</option>
+        </select>
+      </div>
+
+      <div class="setting-row" id="theme-light-row" hidden>
+        <div class="setting-info">
+          <div class="setting-title">Light Theme Style</div>
+          <div class="setting-desc">Select a style for Light Mode</div>
+        </div>
+        <select id="themeLight">
+          <option value="classic">Classic Light (Soft Grey)</option>
+          <option value="warm">Warm Amber (Cream & Gold)</option>
+          <option value="nordic">Nordic Frost (Cool Slate)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 4. Antigravity Google Connection -->
     <div class="card">
       <h2>Antigravity Google Connection</h2>
       <p class="hint">
