@@ -110,7 +110,7 @@ export const antigravity = {
     );
 
     const windows = parsePools(data?.models);
-    if (windows.length === 0) {
+    if (!data || typeof data !== 'object') {
       throw new ProviderError('parse', 'Quota info not found');
     }
     return { plan: info.tier, windows };

@@ -101,49 +101,56 @@ async function render(snapshots) {
       }
     } else {
       latest = Math.max(latest, snap.at || 0);
-      for (const w of snap.windows || []) {
-        const pct = clampPct(w.usedPct);
-        if (pct === null) continue;
-        const sev = severity(pct, opts);
-        const left = Math.round(100 - pct);
+      if (!snap.windows || snap.windows.length === 0) {
+        const m = document.createElement('div');
+        m.className = 'muted';
+        m.textContent = 'No active limits';
+        card.append(m);
+      } else {
+        for (const w of snap.windows || []) {
+          const pct = clampPct(w.usedPct);
+          if (pct === null) continue;
+          const sev = severity(pct, opts);
+          const left = Math.round(100 - pct);
 
-        const win = document.createElement('div');
-        win.className = 'win';
+          const win = document.createElement('div');
+          win.className = 'win';
 
-        const top = document.createElement('div');
-        top.className = 'wtop';
-        const label = document.createElement('span');
-        label.className = 'wlabel';
-        label.textContent = w.label;
-        label.title = w.label;
-        const val = document.createElement('span');
-        val.className = `wpct ${sev}`;
-        val.textContent = `${left}%`;
-        top.append(label, val);
+          const top = document.createElement('div');
+          top.className = 'wtop';
+          const label = document.createElement('span');
+          label.className = 'wlabel';
+          label.textContent = w.label;
+          label.title = w.label;
+          const val = document.createElement('span');
+          val.className = `wpct ${sev}`;
+          val.textContent = `${left}%`;
+          top.append(label, val);
 
-        const barRow = document.createElement('div');
-        barRow.className = 'wbar-row';
-        const bar = document.createElement('div');
-        bar.className = 'bar';
-        const fill = document.createElement('div');
-        fill.className = `fill ${sev}`;
-        fill.style.width = `${left}%`; // fuel gauge — bar length is the remaining quota
-        if (sev === 'ok') {
-          fill.style.background = `linear-gradient(90deg, color-mix(in srgb, ${p.color} 65%, #000) 0%, ${p.color} 100%)`;
+          const barRow = document.createElement('div');
+          barRow.className = 'wbar-row';
+          const bar = document.createElement('div');
+          bar.className = 'bar';
+          const fill = document.createElement('div');
+          fill.className = `fill ${sev}`;
+          fill.style.width = `${left}%`; // fuel gauge — bar length is the remaining quota
+          if (sev === 'ok') {
+            fill.style.background = `linear-gradient(90deg, color-mix(in srgb, ${p.color} 65%, #000) 0%, ${p.color} 100%)`;
+          }
+          bar.append(fill);
+          barRow.append(bar);
+
+          const resetText = formatReset(w.resetAt);
+          if (resetText) {
+            const reset = document.createElement('span');
+            reset.className = 'wreset';
+            reset.textContent = resetText;
+            barRow.append(reset);
+          }
+
+          win.append(top, barRow);
+          card.append(win);
         }
-        bar.append(fill);
-        barRow.append(bar);
-
-        const resetText = formatReset(w.resetAt);
-        if (resetText) {
-          const reset = document.createElement('span');
-          reset.className = 'wreset';
-          reset.textContent = resetText;
-          barRow.append(reset);
-        }
-
-        win.append(top, barRow);
-        card.append(win);
       }
     }
     cardsEl.append(card);

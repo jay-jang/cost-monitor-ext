@@ -205,7 +205,9 @@ async function updateBadge(snapshots) {
   });
 
   if (pick) {
-    await chrome.action.setBadgeText({ text: String(Math.round(pick.pct)) });
+    const opts = await getOptions();
+    const val = opts.badgeMode === 'remaining' ? 100 - pick.pct : pick.pct;
+    await chrome.action.setBadgeText({ text: String(Math.round(val)) });
     await chrome.action.setBadgeBackgroundColor({ color: pick.color });
     if (chrome.action.setBadgeTextColor) {
       await chrome.action.setBadgeTextColor({ color: '#ffffff' });

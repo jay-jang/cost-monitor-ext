@@ -5,6 +5,7 @@ const els = {
   codex: document.getElementById('p-codex'),
   antigravity: document.getElementById('p-antigravity'),
   pollMinutes: document.getElementById('pollMinutes'),
+  badgeMode: document.getElementById('badgeMode'),
   warnPct: document.getElementById('warnPct'),
   critPct: document.getElementById('critPct'),
   notify: document.getElementById('notify'),
@@ -35,6 +36,7 @@ async function load() {
   els.codex.checked = opts.providers.codex;
   els.antigravity.checked = opts.providers.antigravity;
   els.pollMinutes.value = String(opts.pollMinutes);
+  els.badgeMode.value = opts.badgeMode;
   els.warnPct.value = opts.warnPct;
   els.critPct.value = opts.critPct;
   els.notify.checked = opts.notify;
@@ -60,6 +62,7 @@ async function save() {
       antigravity: els.antigravity.checked,
     },
     pollMinutes: Number(els.pollMinutes.value) || 5,
+    badgeMode: els.badgeMode.value,
     warnPct: warn,
     critPct: crit,
     notify: els.notify.checked,
@@ -75,7 +78,7 @@ async function save() {
   savedTimer = setTimeout(() => els.saved.classList.remove('show'), 2000);
 }
 
-for (const key of ['claude', 'codex', 'antigravity', 'pollMinutes', 'warnPct', 'critPct', 'notify', 'themeMode', 'themeDark', 'themeLight']) {
+for (const key of ['claude', 'codex', 'antigravity', 'pollMinutes', 'badgeMode', 'warnPct', 'critPct', 'notify', 'themeMode', 'themeDark', 'themeLight']) {
   els[key].addEventListener('change', save);
 }
 

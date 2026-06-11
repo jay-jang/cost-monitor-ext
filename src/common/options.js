@@ -7,6 +7,7 @@ export const DEFAULT_OPTIONS = {
   themeMode: 'dark',
   themeDark: 'midnight',
   themeLight: 'classic',
+  badgeMode: 'remaining', // 'remaining' or 'used'
 };
 
 export async function getOptions() {

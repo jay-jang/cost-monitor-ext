@@ -104,7 +104,7 @@ export const claude = {
     }
 
     const windows = parseWindows(data);
-    if (windows.length === 0) {
+    if (!data || typeof data !== 'object') {
       throw new ProviderError('parse', 'Usage fields not found');
     }
     return { plan: org.plan, windows };

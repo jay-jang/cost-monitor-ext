@@ -76,7 +76,7 @@ export const codex = {
       parseWindow('secondary', rl.secondary_window, 'Weekly'),
     ].filter(Boolean);
 
-    if (windows.length === 0) {
+    if (!data || typeof data !== 'object' || (!data.plan_type && !data.rate_limit)) {
       throw new ProviderError('parse', 'Usage fields not found');
     }
     return { plan: planLabel(data.plan_type), windows };
