@@ -1,4 +1,4 @@
-# LLM Quota Monitor
+# Coding Agent Quota Monitor
 
 A Chrome extension that lets you check your Claude Code, Codex, and Antigravity plan usage (remaining quota limits) in real-time right from your Chrome toolbar.
 

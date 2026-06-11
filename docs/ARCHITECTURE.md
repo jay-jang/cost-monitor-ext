@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes **how** the LLM Quota Monitor extension fetches usage data from each service and how its internal components work together.
+This document describes **how** the Coding Agent Quota Monitor extension fetches usage data from each service and how its internal components work together.
 
 ---
 
