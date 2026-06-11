@@ -161,13 +161,14 @@ async function doRefreshAll(force = false) {
 }
 
 // 배지는 직전 폴링 대비 사용량이 가장 최근에 바뀐 윈도우(=지금 활발히 소모 중인 한도)를
-// 보여준다. 변화가 없으면 마지막으로 바뀐 윈도우 선택을 유지한다. 같은 폴링에서 여러 개가
-// 동시에 바뀌면 사용률이 가장 높은 것을 고른다. 색은 그 윈도우가 속한 서비스의 브랜드 색.
+// 보여준다. 변화가 없으면 마지막으로 바뀐 윈도우 선택을 유지한다. 한 모델은 보통 세션·주간
+// 윈도우가 한 응답에서 함께 갱신되므로, 동시에 바뀐 윈도우들 중에서는 단기(리셋이 임박한)
+// 값을 우선한다. 그래도 동률이면 사용률이 높은 것. 색은 그 윈도우가 속한 서비스의 브랜드 색.
 async function pickBadgeWindow(snapshots) {
   const { windowState = {} } = await chrome.storage.local.get('windowState');
   const now = Date.now();
   const next = {};
-  let pick = null; // { pct, color, changedAt }
+  let pick = null; // { pct, color, changedAt, reset }
 
   for (const p of PROVIDERS) {
     const snap = snapshots[p.id];
@@ -179,12 +180,15 @@ async function pickBadgeWindow(snapshots) {
       const prev = windowState[key];
       const changedAt = !prev || prev.pct !== pct ? now : prev.changedAt;
       next[key] = { pct, changedAt };
+      // 단기 우선: 리셋이 임박할수록(작을수록) 단기 윈도우. 없으면 장기로 취급.
+      const reset = typeof w.resetAt === 'number' ? w.resetAt : Infinity;
       if (
         pick === null ||
         changedAt > pick.changedAt ||
-        (changedAt === pick.changedAt && pct > pick.pct)
+        (changedAt === pick.changedAt && reset < pick.reset) ||
+        (changedAt === pick.changedAt && reset === pick.reset && pct > pick.pct)
       ) {
-        pick = { pct, color: p.color, changedAt };
+        pick = { pct, color: p.color, changedAt, reset };
       }
     }
   }
