@@ -18,23 +18,27 @@ function antigravityUA() {
 
 async function ensureAntigravityUserAgent() {
   try {
-    await chrome.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: [AG_UA_RULE_ID],
-      addRules: [
-        {
-          id: AG_UA_RULE_ID,
-          priority: 1,
-          action: {
-            type: 'modifyHeaders',
-            requestHeaders: [{ header: 'user-agent', operation: 'set', value: antigravityUA() }],
+    const rules = await chrome.declarativeNetRequest.getDynamicRules();
+    const hasRule = rules.some((r) => r.id === AG_UA_RULE_ID);
+    if (!hasRule) {
+      await chrome.declarativeNetRequest.updateDynamicRules({
+        removeRuleIds: [AG_UA_RULE_ID],
+        addRules: [
+          {
+            id: AG_UA_RULE_ID,
+            priority: 1,
+            action: {
+              type: 'modifyHeaders',
+              requestHeaders: [{ header: 'user-agent', operation: 'set', value: antigravityUA() }],
+            },
+            condition: {
+              urlFilter: '||cloudcode-pa.googleapis.com/',
+              resourceTypes: ['xmlhttprequest'],
+            },
           },
-          condition: {
-            urlFilter: '||cloudcode-pa.googleapis.com/',
-            resourceTypes: ['xmlhttprequest'],
-          },
-        },
-      ],
-    });
+        ],
+      });
+    }
   } catch (e) {
     console.error('Antigravity User-Agent 규칙 등록 실패', e);
   }
@@ -42,18 +46,18 @@ async function ensureAntigravityUserAgent() {
 
 ensureAntigravityUserAgent();
 
-initAuthListener(() => refreshAll());
+initAuthListener(() => refreshAll(true));
 
 chrome.runtime.onInstalled.addListener(() => {
   ensureAntigravityUserAgent();
   schedule();
-  refreshAll();
+  refreshAll(true);
 });
 
 chrome.runtime.onStartup.addListener(() => {
   ensureAntigravityUserAgent();
   schedule();
-  refreshAll();
+  refreshAll(true);
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
@@ -63,13 +67,13 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'sync' && changes.options) {
     schedule();
-    refreshAll();
+    refreshAll(true);
   }
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === 'refresh') {
-    refreshAll().then(() => sendResponse({ ok: true }));
+    refreshAll(!!msg.force).then(() => sendResponse({ ok: true }));
     return true; // keep the message channel open for the async response
   }
   if (msg?.type === 'antigravity-connect') {
@@ -78,7 +82,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
   if (msg?.type === 'antigravity-disconnect') {
     disconnect()
-      .then(() => refreshAll())
+      .then(() => refreshAll(true))
       .then(() => sendResponse({ ok: true }));
     return true;
   }
@@ -95,18 +99,21 @@ async function schedule() {
 
 let refreshing = null;
 
-function refreshAll() {
+function refreshAll(force = false) {
   // 팝업 오픈과 알람이 겹쳐도 한 번만 폴링
   if (!refreshing) {
-    refreshing = doRefreshAll().finally(() => {
+    refreshing = doRefreshAll(force).finally(() => {
       refreshing = null;
     });
   }
   return refreshing;
 }
 
-async function doRefreshAll() {
+async function doRefreshAll(force = false) {
   const opts = await getOptions();
+  if (force) {
+    await chrome.storage.local.remove(['claudeOrg', 'agProject']);
+  }
   const { snapshots = {} } = await chrome.storage.local.get('snapshots');
 
   await Promise.all(

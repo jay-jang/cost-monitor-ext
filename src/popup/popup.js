@@ -6,10 +6,12 @@ const cardsEl = document.getElementById('cards');
 const updatedEl = document.getElementById('updated');
 const refreshBtn = document.getElementById('refresh');
 
-document.getElementById('open-options').addEventListener('click', (e) => {
+function openOptions(e) {
   e.preventDefault();
   chrome.runtime.openOptionsPage();
-});
+}
+document.getElementById('open-options').addEventListener('click', openOptions);
+document.getElementById('settings').addEventListener('click', openOptions);
 
 refreshBtn.addEventListener('click', () => refresh());
 
@@ -20,7 +22,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 async function refresh() {
   refreshBtn.classList.add('spinning');
   try {
-    await chrome.runtime.sendMessage({ type: 'refresh' });
+    await chrome.runtime.sendMessage({ type: 'refresh', force: true });
   } catch {
     // 서비스 워커가 깨어나는 중이면 메시지가 유실될 수 있음 — storage 이벤트로 갱신됨
   } finally {
@@ -29,9 +31,9 @@ async function refresh() {
 }
 
 function barColor(pct, opts) {
-  if (pct >= opts.critPct) return 'var(--crit)';
-  if (pct >= opts.warnPct) return 'var(--warn)';
-  return 'var(--ok)';
+  if (pct >= opts.critPct) return 'var(--crit-gradient)';
+  if (pct >= opts.warnPct) return 'var(--warn-gradient)';
+  return 'var(--ok-gradient)';
 }
 
 let cachedOpts = null;
@@ -52,6 +54,7 @@ async function render(snapshots) {
     const dot = document.createElement('span');
     dot.className = 'dot';
     dot.style.background = p.color;
+    dot.style.boxShadow = `0 0 8px ${p.color}`;
     const name = document.createElement('span');
     name.className = 'pname';
     name.textContent = p.name;

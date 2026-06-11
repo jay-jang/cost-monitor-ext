@@ -2,70 +2,124 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <style>
-    :root { color-scheme: dark; }
-    body {
-      min-width: 320px;
-      background: #16181d;
-      color: #e8eaed;
-      font: 13px/1.6 -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-      padding: 16px;
-    }
-    h2 { font-size: 13px; color: #9aa0a6; margin: 14px 0 6px; font-weight: 600; }
-    label { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
-    select, input[type="number"] {
-      background: #1f2229; color: #e8eaed;
-      border: 1px solid #2c3038; border-radius: 6px; padding: 3px 8px;
-    }
-    input[type="number"] { width: 60px; }
-    .saved { color: #34a853; font-size: 12px; margin-top: 12px; visibility: hidden; }
-    button {
-      background: #1f2229; color: #e8eaed;
-      border: 1px solid #2c3038; border-radius: 6px;
-      padding: 4px 12px; cursor: pointer;
-    }
-    button:hover { background: #2c3038; }
-    .hint { color: #9aa0a6; font-size: 12px; margin: 4px 0; }
-    .ag-status { font-size: 12px; margin: 6px 0; }
-    .ag-status.ok { color: #34a853; }
-    .ag-status.err { color: #ea4335; }
-  </style>
+  <title>LLM Quota Monitor 설정</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="options.css" />
 </head>
 <body>
-  <h2>추적할 서비스</h2>
-  <label><input type="checkbox" id="p-claude" /> Claude (claude.ai)</label>
-  <label><input type="checkbox" id="p-codex" /> Codex (chatgpt.com)</label>
-  <label><input type="checkbox" id="p-antigravity" /> Antigravity (Google)</label>
+  <div class="container">
+    <header>
+      <h1>LLM Quota Monitor</h1>
+      <div class="subtitle">실시간 LLM 할당량 모니터링 환경 설정</div>
+    </header>
 
-  <h2>폴링 주기</h2>
-  <label>
-    <select id="pollMinutes">
-      <option value="1">1분</option>
-      <option value="2">2분</option>
-      <option value="5">5분</option>
-      <option value="10">10분</option>
-      <option value="15">15분</option>
-    </select>
-    마다 사용량 확인
-  </label>
+    <!-- 1. 서비스 활성화 -->
+    <div class="card">
+      <h2>추적 서비스 설정</h2>
+      
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-title">Claude</div>
+          <div class="setting-desc">claude.ai 계정 사용량 추적</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="p-claude" />
+          <span class="slider"></span>
+        </label>
+      </div>
 
-  <h2>경고 기준</h2>
-  <label>주의 <input type="number" id="warnPct" min="1" max="99" />% 이상</label>
-  <label>위험 <input type="number" id="critPct" min="1" max="100" />% 이상</label>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-title">Codex (ChatGPT)</div>
+          <div class="setting-desc">chatgpt.com 계정 사용량 추적</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="p-codex" />
+          <span class="slider"></span>
+        </label>
+      </div>
 
-  <h2>알림</h2>
-  <label><input type="checkbox" id="notify" /> 기준을 넘으면 데스크톱 알림 보내기</label>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-title">Antigravity</div>
+          <div class="setting-desc">Google Cloud Code API 기반 할당량 추적</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="p-antigravity" />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
 
-  <h2>Antigravity 연결</h2>
-  <p class="hint">
-    Antigravity 쿼터는 웹 페이지가 없어서, Google 계정 OAuth 연결을 통해
-    Antigravity와 같은 API에서 직접 읽어옵니다.
-  </p>
-  <div class="ag-status" id="ag-status">연결 안 됨</div>
-  <button id="ag-connect">Google 계정 연결</button>
-  <button id="ag-disconnect" hidden>연결 해제</button>
+    <!-- 2. 모니터링 및 알림 -->
+    <div class="card">
+      <h2>모니터링 및 알림 설정</h2>
+      
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-title">폴링 주기</div>
+          <div class="setting-desc">사용량 정보를 업데이트하는 시간 간격</div>
+        </div>
+        <select id="pollMinutes">
+          <option value="1">1분</option>
+          <option value="2">2분</option>
+          <option value="5">5분</option>
+          <option value="10">10분</option>
+          <option value="15">15분</option>
+        </select>
+      </div>
 
-  <div class="saved" id="saved">저장됨</div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-title">주의(Warning) 경고선</div>
+          <div class="setting-desc">사용량이 이 값을 초과하면 주황색 배지로 표시</div>
+        </div>
+        <div class="input-group">
+          <input type="number" id="warnPct" min="1" max="99" />
+          <span>%</span>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-title">위험(Critical) 경고선</div>
+          <div class="setting-desc">사용량이 이 값을 초과하면 빨간색 배지로 표시</div>
+        </div>
+        <div class="input-group">
+          <input type="number" id="critPct" min="1" max="100" />
+          <span>%</span>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-title">데스크톱 알림</div>
+          <div class="setting-desc">경고선 도달 시 데스크톱 알림을 발송합니다</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="notify" />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- 3. Antigravity 연결 -->
+    <div class="card">
+      <h2>Antigravity Google 계정 연결</h2>
+      <p class="hint">
+        Antigravity 쿼터는 전용 웹 페이지가 존재하지 않아, Google 계정 OAuth 연결을 통해 Antigravity API에서 직접 쿼터 데이터를 조회합니다.
+      </p>
+      <div class="ag-status" id="ag-status">연결 안 됨</div>
+      <div class="btn-container">
+        <button id="ag-connect">Google 계정 연결</button>
+        <button id="ag-disconnect" hidden>연결 해제</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="saved" id="saved">설정이 성공적으로 저장되었습니다.</div>
   <script type="module" src="options.js"></script>
 </body>
 </html>

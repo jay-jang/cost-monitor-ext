@@ -2,12 +2,18 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
   <header>
     <h1>LLM Quota Monitor</h1>
-    <button id="refresh" title="새로고침">↻</button>
+    <div class="header-actions">
+      <button id="refresh" title="새로고침">↻</button>
+      <button id="settings" title="설정">⚙</button>
+    </div>
   </header>
   <main id="cards"></main>
   <footer>

@@ -38,9 +38,9 @@ async function save() {
     critPct: crit,
     notify: els.notify.checked,
   });
-  els.saved.style.visibility = 'visible';
+  els.saved.classList.add('show');
   clearTimeout(savedTimer);
-  savedTimer = setTimeout(() => (els.saved.style.visibility = 'hidden'), 1500);
+  savedTimer = setTimeout(() => els.saved.classList.remove('show'), 2000);
 }
 
 for (const key of ['claude', 'codex', 'antigravity', 'pollMinutes', 'warnPct', 'critPct', 'notify']) {
