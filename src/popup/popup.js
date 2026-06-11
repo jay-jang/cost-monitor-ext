@@ -114,6 +114,9 @@ async function render(snapshots) {
         const fill = document.createElement('div');
         fill.className = `fill ${sev}`;
         fill.style.width = `${left}%`; // fuel gauge — bar length is the remaining quota
+        if (sev === 'ok') {
+          fill.style.background = `linear-gradient(90deg, color-mix(in srgb, ${p.color} 65%, #000) 0%, ${p.color} 100%)`;
+        }
         bar.append(fill);
         barRow.append(bar);
 
