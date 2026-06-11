@@ -30,10 +30,10 @@ async function refresh() {
   }
 }
 
-function barColor(pct, opts) {
-  if (pct >= opts.critPct) return 'var(--crit-gradient)';
-  if (pct >= opts.warnPct) return 'var(--warn-gradient)';
-  return 'var(--ok-gradient)';
+function severity(pct, opts) {
+  if (pct >= opts.critPct) return 'crit';
+  if (pct >= opts.warnPct) return 'warn';
+  return 'ok';
 }
 
 let cachedOpts = null;
@@ -68,10 +68,10 @@ async function render(snapshots) {
     card.append(head);
 
     if (!snap) {
-      const err = document.createElement('div');
-      err.className = 'err';
-      err.textContent = 'No data fetched yet';
-      card.append(err);
+      const m = document.createElement('div');
+      m.className = 'muted';
+      m.textContent = 'No data fetched yet';
+      card.append(m);
     } else if (!snap.ok) {
       latest = Math.max(latest, snap.at || 0);
       const err = document.createElement('div');
@@ -90,33 +90,38 @@ async function render(snapshots) {
       for (const w of snap.windows || []) {
         const pct = clampPct(w.usedPct);
         if (pct === null) continue;
+        const sev = severity(pct, opts);
+        const left = Math.round(100 - pct);
 
         const win = document.createElement('div');
-        win.className = 'window';
+        win.className = 'win';
 
-        const row = document.createElement('div');
-        row.className = 'wrow';
+        const main = document.createElement('div');
+        main.className = 'wmain';
+
         const label = document.createElement('span');
         label.className = 'wlabel';
         label.textContent = w.label;
-        const val = document.createElement('span');
-        val.className = 'wpct';
-        val.textContent = `${Math.round(100 - pct)}% left`;
-        row.append(label, val);
+        label.title = w.label;
 
         const bar = document.createElement('div');
         bar.className = 'bar';
         const fill = document.createElement('div');
-        fill.className = 'fill';
-        fill.style.width = `${pct}%`;
-        fill.style.background = barColor(pct, opts);
+        fill.className = `fill ${sev}`;
+        fill.style.width = `${left}%`; // fuel gauge — bar length is the remaining quota
         bar.append(fill);
 
-        win.append(row, bar);
+        const val = document.createElement('span');
+        val.className = `wpct ${sev}`;
+        val.textContent = `${left}%`;
+
+        main.append(label, bar, val);
+        win.append(main);
+
         const resetText = formatReset(w.resetAt);
         if (resetText) {
           const reset = document.createElement('div');
-          reset.className = 'reset';
+          reset.className = 'wreset';
           reset.textContent = resetText;
           win.append(reset);
         }
