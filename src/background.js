@@ -18,27 +18,25 @@ function antigravityUA() {
 
 async function ensureAntigravityUserAgent() {
   try {
-    const rules = await chrome.declarativeNetRequest.getDynamicRules();
-    const hasRule = rules.some((r) => r.id === AG_UA_RULE_ID);
-    if (!hasRule) {
-      await chrome.declarativeNetRequest.updateDynamicRules({
-        removeRuleIds: [AG_UA_RULE_ID],
-        addRules: [
-          {
-            id: AG_UA_RULE_ID,
-            priority: 1,
-            action: {
-              type: 'modifyHeaders',
-              requestHeaders: [{ header: 'user-agent', operation: 'set', value: antigravityUA() }],
-            },
-            condition: {
-              urlFilter: '||cloudcode-pa.googleapis.com/',
-              resourceTypes: ['xmlhttprequest'],
-            },
+    // Always (re)register so existing installs pick up filter changes. The substring filter
+    // (no '||' anchor) matches both cloudcode-pa and daily-cloudcode-pa.
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds: [AG_UA_RULE_ID],
+      addRules: [
+        {
+          id: AG_UA_RULE_ID,
+          priority: 1,
+          action: {
+            type: 'modifyHeaders',
+            requestHeaders: [{ header: 'user-agent', operation: 'set', value: antigravityUA() }],
           },
-        ],
-      });
-    }
+          condition: {
+            urlFilter: 'cloudcode-pa.googleapis.com/',
+            resourceTypes: ['xmlhttprequest'],
+          },
+        },
+      ],
+    });
   } catch (e) {
     console.error('Failed to register Antigravity User-Agent rule', e);
   }

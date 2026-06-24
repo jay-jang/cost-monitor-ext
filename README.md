@@ -16,7 +16,7 @@ Since it queries the **server-side usage APIs of each service** rather than read
 |---|---|---|
 | Claude | `claude.ai/api/organizations/{org}/usage` (the same internal API used by Settings -> Usage page) | Logged into claude.ai in your browser |
 | Codex | `chatgpt.com/backend-api/wham/usage` (Cookie authentication) | Logged into chatgpt.com in your browser |
-| Antigravity | `cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels` (Remaining quota per model pool) | Connect Google Account via OAuth on the options page |
+| Antigravity | `{cloudcode-pa, daily-cloudcode-pa}.googleapis.com/v1internal:retrieveUserQuotaSummary` (per-group weekly + 5-hour limits, merged across both backends) | Connect Google Account via OAuth on the options page |
 
 - **Claude / Codex**: Works automatically without any additional configuration if you are already logged in via your browser. The extension automatically inherits the session cookies, and no credentials or tokens are sent to external servers (all requests are made directly to the respective service domain).
 - **Antigravity**: There is no dedicated web page or simple cookie API for checking quota limits. Instead, the extension directly calls the Cloud Code API used by the Antigravity IDE via Google OAuth. To connect, simply click the **Connect Google Account** button on the Options page and grant permissions once.
@@ -38,7 +38,7 @@ Since it queries the **server-side usage APIs of each service** rather than read
 - All three services use **private internal APIs**, which may change without notice. Parsing is implemented defensively, and if an API breaks, the popup will display an error message along with a direct link to the respective service page.
 - Codex (chatgpt.com) can occasionally trigger Cloudflare security checks. If this happens and you have a chatgpt.com tab open, the request will automatically retry via that tab; otherwise, visiting chatgpt.com once will resolve the check.
 - Claude's usage metrics include usage from Claude Code (integrated 5-hour sessions, weekly limits, and Opus weekly window).
-- Antigravity shares model quotas across pools (Gemini 3, Claude/GPT, Gemini 2.5), so limits are displayed by pool. Weekly quotas are not displayed because probe calls to that endpoint actually consume quota.
+- Antigravity usage comes from `v1internal:retrieveUserQuotaSummary` — the same read-only source behind the IDE's "Model Quota" panel. It reports two groups, **Gemini** (all Google models) and **Claude & GPT** (Anthropic + OpenAI models), each with both a **Weekly** and a **5-hour** limit (four bars total). The stable Antigravity build talks to `cloudcode-pa` while the daily/Insiders build talks to `daily-cloudcode-pa`, and **Gemini quota is tracked separately per backend** (third-party Claude/GPT quota is shared). The extension therefore queries **both** backends and shows the tighter (more-used) limit per group, so it matches whichever build you run with no configuration. If both summary calls fail it falls back to deriving the 5-hour usage from `fetchAvailableModels` (an exhausted limit there drops `remainingFraction` and returns only `resetTime`, and is shown as 100% used rather than skipped).
 
 ## Project Structure
 
@@ -52,7 +52,7 @@ src/
 │   ├── http.js          Cookie authentication fetch + open tab proxy fallback
 │   ├── claude.js        Org discovery -> usage window parsing
 │   ├── codex.js         Session token -> wham/usage window parsing
-│   ├── antigravity.js   loadCodeAssist -> fetchAvailableModels pool parsing
+│   ├── antigravity.js   loadCodeAssist -> retrieveUserQuotaSummary (weekly + 5h per group)
 │   └── antigravity-auth.js  Google OAuth (Auth Code + PKCE, loopback code capture)
 ├── popup/               Usage card UI
 └── options/             Settings panel + Antigravity account connection

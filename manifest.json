@@ -17,6 +17,7 @@
     "https://chatgpt.com/*",
     "https://oauth2.googleapis.com/*",
     "https://cloudcode-pa.googleapis.com/*",
+    "https://daily-cloudcode-pa.googleapis.com/*",
     "https://www.googleapis.com/*"
   ],
   "background": {
