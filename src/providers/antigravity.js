@@ -215,6 +215,8 @@ export const antigravity = {
     if (!data || typeof data !== 'object') {
       throw new ProviderError('parse', 'Quota info not found');
     }
-    return { plan: info.tier, windows: parsePools(data?.models) };
+    const modelWindows = parsePools(data?.models);
+    if (!modelWindows.length) throw new ProviderError('parse', 'Quota fields not recognized — open Settings');
+    return { plan: info.tier, windows: modelWindows };
   },
 };

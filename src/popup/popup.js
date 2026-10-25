@@ -96,7 +96,7 @@ async function render(snapshots) {
         card.append(makeCta('Connect Google Account in Settings →', () => chrome.runtime.openOptionsPage()));
       } else if (snap.errorType === 'auth') {
         card.append(makeCta('Go to Login →', () => chrome.tabs.create({ url: p.loginUrl })));
-      } else if (snap.errorType === 'unsupported') {
+      } else if (snap.errorType === 'unsupported' || snap.errorType === 'parse') {
         card.append(makeCta('Open Service Page →', () => chrome.tabs.create({ url: p.loginUrl })));
       }
     } else {
@@ -104,7 +104,7 @@ async function render(snapshots) {
       if (!snap.windows || snap.windows.length === 0) {
         const m = document.createElement('div');
         m.className = 'muted';
-        m.textContent = 'No active limits';
+        m.textContent = snap.usageNote || (snap.noActiveLimits ? 'No active limits' : 'Usage data unavailable');
         card.append(m);
       } else {
         for (const w of snap.windows || []) {
@@ -151,6 +151,29 @@ async function render(snapshots) {
           win.append(top, barRow);
           card.append(win);
         }
+      }
+      if (snap.usageNote && snap.windows?.length) {
+        const note = document.createElement('div');
+        note.className = 'muted';
+        note.textContent = snap.usageNote;
+        card.append(note);
+      }
+      if (snap.details?.length) {
+        const details = document.createElement('div');
+        details.className = 'usage-details';
+        for (const detail of snap.details) {
+          const row = document.createElement('div');
+          row.className = 'detail-row';
+          const label = document.createElement('span');
+          label.className = 'detail-label';
+          label.textContent = detail.label;
+          const value = document.createElement('span');
+          value.className = 'detail-value';
+          value.textContent = detail.value;
+          row.append(label, value);
+          details.append(row);
+        }
+        card.append(details);
       }
     }
     cardsEl.append(card);

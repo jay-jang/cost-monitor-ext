@@ -36,12 +36,17 @@ All providers follow the same **adapter contract** (`providers/index.js`):
   async fetchUsage() -> {
     plan: string | null,
     windows: [{ id, label, usedPct (0~100), resetAt (epoch ms | null) }],
+    details?: [{ id, label, value }], // Text-only credit/spend information
+    noActiveLimits?: boolean,       // Explicit empty quota response, never inferred from parse failure
+    usageNote?: string | null,      // Missing or partially unreadable quota data
   }
   // Throws ProviderError(type: 'auth' | 'network' | 'parse' | 'notfound' | 'unsupported') on failure
 }
 ```
 
 `background.js` does not need to know the details of each provider — it simply calls `fetchUsage()` and uses the returned `windows` to update the badge, popups, and notifications. Adding a new service is as simple as creating an adapter file and registering it in `index.js`.
+
+The popup renders `details` separately from percentage bars. Monetary balances, spending controls and earned resets never enter badge selection or quota-threshold notifications. Unknown response shapes throw a `parse` error with a link to the service's usage page. Partially missing readings show `usageNote`; only explicit empty quota data sets `noActiveLimits`.
 
 ---
 
@@ -76,14 +81,16 @@ However, security protections like **Cloudflare** can block requests originating
 - Fetches the user's organization list from `claude.ai/api/organizations`.
 - Excludes organizations with only `['api']` capabilities (API console only, no plan limits).
 - Reads the `lastActiveOrg` cookie, where claude.ai records the active organization UUID, to match the **exact organization selected in the settings UI**. If the cookie is missing, it falls back to an organization with `chat` capabilities, and then to the first organization.
-- Results are cached for 24 hours. If a `404` error occurs because the user left the organization, the cache is cleared and rediscovered once.
+- Metadata is cached for 24 hours, but `lastActiveOrg` is checked on every poll. A changed active UUID immediately invalidates the cache. An unavailable selected workspace produces an error instead of silently displaying a different workspace. If a `404` occurs, the organization is rediscovered once.
 
 **Usage Parsing**
-- Extracts windows containing `utilization` (usage %) and `resets_at` (reset time):
+- Prefers the server's `limits[]` array when present. Its rows supply `kind`, `group`, `percent`, `resets_at` and optional model/surface `scope`. This supports **Fable** and future model-scoped meters without hardcoding a new key for each model. IDs use kind/group/scope rather than array position, so reordering does not reset notification history.
+- Falls back to legacy windows containing `utilization` (usage %) and `resets_at` (reset time):
   - `five_hour` — Session (5h)
   - `seven_day` — Weekly (Total)
   - `seven_day_opus` / `seven_day_sonnet` / `seven_day_oauth_apps` — Weekly limits per model or app
-- Windows not available in the user's plan are absent from the response and automatically skipped.
+- Unknown `seven_day_*` suffixes are also supported. Null windows are skipped; malformed or missing numeric readings are flagged as unavailable, never interpreted as zero usage. `limits: []` explicitly means no meters; `limits: null` permits the legacy fallback.
+- Current `spend` supplies `enabled`, `used` and `limit` as typed money (`amount_minor`, `currency`, `exponent`). It takes precedence over compatibility `extra_usage` fields (`is_enabled`, `used_credits`, `monthly_limit`, optional `currency`/`decimal_places`). Amounts are in **minor units**, not dollars; explicit exponents are honored, otherwise the currency's standard minor unit applies (USD for legacy responses without currency). Unknown spend or cap remains unavailable, and disabling extra usage does not hide previously incurred spending.
 - The plan label is inferred from `rate_limit_tier` (`max_20x` -> Max 20x, `pro` -> Pro, etc.).
 
 These figures represent **integrated usage including Claude Code usage**.
@@ -99,12 +106,19 @@ These figures represent **integrated usage including Claude Code usage**.
 2. Calls `wham/usage` by passing the token in `Authorization: Bearer ...`.
 
 **Usage Parsing**
-- `rate_limit.primary_window` -> Session (5h), `rate_limit.secondary_window` -> Weekly.
-- Handles `used_percent` for each window. Handles resets via both `reset_at` (epoch seconds) and `reset_after_seconds` (relative offset).
+- Reads `rate_limit`, optional `code_review_rate_limit`, and `additional_rate_limits[]` (`metered_feature`, `limit_name`, `rate_limit`). Additional quota IDs use the metered feature so model pools and GitHub reviews keep independent histories.
+- Reads `used_percent` only if it is a finite number or nonempty numeric string. Null, empty strings, booleans and objects are unavailable readings. A null/invalid `reset_at` falls back to `reset_after_seconds`; neither is coerced to epoch zero.
 - Automatically determines window labels from `limit_window_seconds` (less than 1 day is labeled "Session Nh", near 7 days is labeled "Weekly").
-- The plan label is mapped from `plan_type`.
+- A primary window can itself be weekly; a missing secondary/session window does not create an artificial 5-hour limit. `prolite`, `pro` and `proplus` are displayed as Pro.
+- `credits` balance/unlimited status, `spend_control.reached`, `rate_limit_reached_type` and `rate_limit_reset_credits` counts are shown as text details. Total earned resets and the currently applicable count are distinct. The extension does not consume resets or change spending controls.
 
 If `wham/usage` returns a Cloudflare `403`, it retries using the **open tab fallback** described above. If still blocked, visiting chatgpt.com once (for login or security challenge) will resolve it.
+
+**Validation (2026-10-25)**
+- Codex's weekly-only response, balances, spend-control state and earned-reset counts were checked against the live account response.
+- Claude's live response was also read through the CLI's read-only `get_usage` control request (no agent prompt), including session/weekly totals, a Fable-scoped row and the typed spend object. This checks the account payload; it does not exercise the Chrome cookie authentication path.
+- Claude's new meter shape and minor-unit currency semantics were inspected in the installed Claude Code **2.1.310** schema. Static analysis of the extracted embedded JavaScript is recorded as REA evidence `ev_d186a289ee3008fe524d9cbcd13f6cedee004b5c343713867f9c0c33e5d74e04`; graph coverage is partial, so it establishes shipped schema text rather than live account availability. Codex's shipped `AdditionalRateLimitDetails` field names agree with the implementation; this account returned null additional/review pools, which are tested with schema-based fixtures.
+- `node --test tests/*.test.mjs` covers numeric/null parsing, schema failures, modern/legacy Claude windows, Fable/future models, minor currency units, organization switching/404 recovery, additional Codex pools, and metadata isolation from quota bars. A headless Chrome popup check covers normal data, unavailable readings, explicit empty quotas, and parse-error recovery links.
 
 ---
 

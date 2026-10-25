@@ -193,3 +193,9 @@ for (const array of [false, true]) {
     });
   });
 }
+
+test('an unrecognized model fallback is a parse error rather than no active limits', async () => {
+  globalThis.fetch = async (url) => url.endsWith(':retrieveUserQuotaSummary')
+    ? new Response('', { status: 503 }) : Response.json({ unexpected: true });
+  await assert.rejects(antigravity.fetchUsage(), e => e.type === 'parse');
+});

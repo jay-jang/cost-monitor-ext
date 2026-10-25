@@ -25,3 +25,16 @@ export function clampPct(n) {
   if (typeof n !== 'number' || !isFinite(n)) return null;
   return Math.min(100, Math.max(0, n));
 }
+
+// Claude extra_usage amounts use the currency's minor units, not whole dollars.
+export function formatMinorCurrency(amount, currency = 'USD', exponent = null) {
+  let formatter;
+  try {
+    formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency });
+  } catch {
+    return `${amount} minor units (${currency})`;
+  }
+  const digits = Number.isInteger(exponent) && exponent >= 0 && exponent <= 9
+    ? exponent : formatter.resolvedOptions().maximumFractionDigits;
+  return formatter.format(amount / (10 ** digits));
+}

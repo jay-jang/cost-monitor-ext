@@ -30,6 +30,7 @@ Since it queries the **server-side usage APIs of each service** rather than read
 
 - **Toolbar Badge**: Shows the usage % of the window whose quota changed most recently (i.e. the limit you are actively consuming), so the badge follows your current activity. The badge background is the **brand color of that service** (Claude orange / Codex green / Antigravity blue) so you can tell at a glance which service the number belongs to.
 - **Popup**: Cards for each service showing the remaining percentage progress bar and reset countdown for each quota window (e.g., 5-hour session, weekly, model pools). Click the ↗ next to a service name to open its usage page (Claude / Codex; Antigravity has no such page).
+- **Credits and spending**: Claude's extra-usage status and monthly spend/cap, plus Codex credit balances, spend-control status and earned-reset counts, appear separately from quota bars. Missing readings show as unavailable; unexpected API formats show an error rather than "No active limits."
 - **Desktop Notifications**: A one-time notification is triggered when usage first crosses the warning/critical threshold.
 - **Options**: Toggle individual services, configure polling interval (1–15 mins), warning/critical thresholds, and desktop notification toggles.
 
@@ -38,6 +39,7 @@ Since it queries the **server-side usage APIs of each service** rather than read
 - All three services use **private internal APIs**, which may change without notice. Parsing is implemented defensively, and if an API breaks, the popup will display an error message along with a direct link to the respective service page.
 - Codex (chatgpt.com) can occasionally trigger Cloudflare security checks. If this happens and you have a chatgpt.com tab open, the request will automatically retry via that tab; otherwise, visiting chatgpt.com once will resolve the check.
 - Claude's usage metrics include usage from Claude Code (integrated 5-hour sessions, weekly limits, and Opus weekly window).
+- Claude also reads server-defined model/surface limits, including Fable, and follows active organization changes on the next poll. Codex supports additional model pools and GitHub review quotas when returned by the server; weekly-only plans do not get a synthetic 5-hour bar.
 - Antigravity usage comes from `v1internal:retrieveUserQuotaSummary`, the read-only source used by the app and CLI. **Gemini** and **Claude & GPT** each report **Weekly** and **5-hour** limits. Paid Pro accounts also report a separate **Gemini 4 Argon · Weekly** limit (`gemini-argon-wtu-weekly`), for five bars total. The API describes Argon as included in the larger Gemini pool on Ultra, so the extension only shows the groups returned by the server. Both `cloudcode-pa` and `daily-cloudcode-pa` are queried, keeping the tighter limit for each bucket. If no usable summary is available, `fetchAvailableModels` supplies model-reported limits; Argon stays separate from ordinary Gemini models, and exhausted limits with only `resetTime` are shown as 100% used.
 
 ## Project Structure
