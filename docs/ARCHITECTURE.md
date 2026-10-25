@@ -128,11 +128,12 @@ The extension uses the standard **Authorization Code + PKCE** flow, tailored wit
 ### 6.2 Quota Fetching (`antigravity.js`)
 
 1. **`loadCodeAssist`** — Retrieves the user's managed GCP project ID and billing tier. Cached for 24 hours (`agProject`).
-2. **`fetchAvailableModels`** — Fetches remaining quotas per model (`quotaInfo.remainingFraction`, `resetTime`, `isExhausted`).
+2. **`retrieveUserQuotaSummary`** — Queries both `cloudcode-pa` and `daily-cloudcode-pa` for server-defined quota groups and windows, including the separate Argon weekly quota where available.
+3. **`fetchAvailableModels`** — Legacy fallback when no usable summary is available. This request retains the project ID and reads per-model `quotaInfo.remainingFraction`, `resetTime`, and `isExhausted`.
 
 ### 6.3 ⚠️ User-Agent Gate (Crucial)
 
-**The `fetchAvailableModels` endpoint returns 200 only if the request has the `User-Agent: antigravity/<version> <OS>/<arch>` header; otherwise, it returns `403 PERMISSION_DENIED`.** A valid OAuth token is not enough; **both the correct client token and the correct User-Agent** are required.
+**The quota APIs require an accepted Antigravity User-Agent in addition to a valid OAuth token.** An unsupported header can return `403 PERMISSION_DENIED`, while an older accepted client can return HTTP 200 with incomplete quota groups.
 
 However, **Chrome extension `fetch()` calls cannot modify the `User-Agent` header** (it is a forbidden header). Under MV3, this is bypassed using `declarativeNetRequest` **dynamic rules** (`ensureAntigravityUserAgent()` in `background.js`):
 
@@ -145,17 +146,25 @@ The OS and architecture are inferred from the user agent of the host environment
 
 > This User-Agent requirement was the reason why connection seemed successful (as `loadCodeAssist` doesn't enforce UA, returning account info) but quota queries returned `403`.
 
-### 6.4 Pool-based Display
+On 2026-10-25, the following responses were observed on the paid Pro account:
 
-Since there are many models and they share quota pools, the extension aggregates and displays usage by pool (`parsePools`):
+| User-Agent prefix | Returned groups |
+|---|---|
+| `antigravity/2.0.4` | Claude & GPT |
+| `antigravity/2.11.0`, `antigravity/2.26.0` | Gemini, Claude & GPT |
+| `antigravity/cli/1.4.7` | Gemini, Claude & GPT, Gemini 4 Argon |
 
-| Pool | Matching Logic | Label |
-|---|---|---|
-| `flash` | Name contains `flash` | Flash |
-| `pro` | Name contains `pro` | Pro |
-| `opus` | Name contains `opus`, `claude`, or `gpt` | Opus |
+The CLI format was observed from the installed CLI's read-only `agy -p '/usage' --output-format json` request. The extension sends `antigravity/cli/1.4.7 <OS>/<arch>`, verified against both backends with the existing OAuth token. The project ID did not explain the missing groups. If a quota disappears again, check the client format/version even when the API reports success.
 
-The **most heavily used model (smallest remaining fraction)** in each pool represents the usage of that pool. The `remainingFraction` is converted to `usedPct = 100 * (1 - fraction)`, and `resetTime` is used for the reset countdown.
+### 6.4 Quota Display
+
+The summary supplies **Gemini** and **Claude & GPT** groups with weekly and 5-hour buckets. On paid Pro it also supplies **Gemini 4 Argon**, containing `gemini-argon-wtu-weekly` (weekly only). The Argon group's description says this quota is separate on paid Pro and included in the larger Gemini quota on Ultra. Groups are parsed dynamically, so no Argon bar is invented for plans where the server does not report it.
+
+Each bucket becomes a separate popup bar; matching bucket IDs from both backends are merged using the higher usage percentage. `remainingFraction` becomes `usedPct = 100 * (1 - fraction)`, and `resetTime` supplies the reset countdown. Exhausted buckets that omit the fraction but include a reset time are shown as 100% used. Argon's distinct bucket ID also keeps its badge history and notification thresholds independent from Gemini's.
+
+The legacy model fallback (`parsePools`) identifies Argon models by ID before applying `modelProvider` grouping, keeping Argon separate even though it reports `MODEL_PROVIDER_GOOGLE`. Other models form Gemini (Google) and Claude & GPT (Anthropic/OpenAI) pools, with name matching if provider metadata is absent. The most-used model in each group represents its model-reported limit. This fallback does not infer the window duration or whether pools are shared on a particular plan; Argon's reset may be weekly.
+
+Run the regression tests with `node --test tests/antigravity.test.mjs` (Node.js 22.7+). They cover replacement of the persisted User-Agent rule, Gemini and Argon parsing with cached and fresh project metadata, merging/exhaustion, plans with no separate Argon bucket, and Argon separation in both map and array model fallbacks.
 
 ---
 

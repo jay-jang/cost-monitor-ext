@@ -12,9 +12,8 @@ const BASES = [
 ];
 const CLIENT_METADATA = { ideName: 'antigravity', ideType: 'ANTIGRAVITY' };
 
-// The backend shares one 5-hour quota across all models of a provider, matching Antigravity's
-// "Gemini Models" / "Claude and GPT models" groups. (The old flash/pro/opus split was obsolete —
-// every Gemini model reports the same shared limit, so they collapse into one pool.)
+// Legacy model fallback. Argon can have a separate quota despite being a Google model;
+// keep its model-reported limit distinct from the ordinary Gemini pool.
 const POOLS = [
   {
     id: 'gemini',
@@ -27,6 +26,11 @@ const POOLS = [
     label: 'Claude & GPT',
     providers: ['MODEL_PROVIDER_ANTHROPIC', 'MODEL_PROVIDER_OPENAI'],
     match: (k) => /claude|sonnet|opus|gpt/.test(k),
+  },
+  {
+    id: 'argon',
+    label: 'Gemini 4 Argon',
+    match: (k) => /argon/.test(k),
   },
 ];
 
@@ -86,7 +90,7 @@ async function getProjectInfo(token, force = false) {
   return info;
 }
 
-// A model's 5-hour usage. When the limit is exhausted the API now omits remainingFraction
+// A model's usage (Argon may report a weekly limit). When exhausted the API omits remainingFraction
 // (and no longer sends isExhausted), leaving only resetTime — treat that as 100% used so the
 // pool is still reported instead of silently dropped (which made the limit "disappear").
 function modelUsedPct(q) {
@@ -105,7 +109,7 @@ function groupLabel(name) {
 }
 
 // retrieveUserQuotaSummary is the read-only source behind the IDE's "Model Quota" panel:
-// one group per provider (Gemini / Claude & GPT), each with a weekly and a 5-hour bucket.
+// server-defined groups and windows, including a separate Argon weekly bucket on paid Pro.
 function parseQuotaSummary(data) {
   const groups = data?.groups;
   if (!Array.isArray(groups)) return [];
@@ -155,9 +159,11 @@ function parsePools(models) {
     let best = null; // Models in a pool share one quota; show the tightest (most used) as representative
     for (const [key, model] of entries) {
       const provider = model?.modelProvider;
-      const inPool = provider
-        ? pool.providers.includes(provider)
-        : pool.match(String(key).toLowerCase());
+      const modelKey = String(key).toLowerCase();
+      const isArgon = /argon/.test(modelKey);
+      const inPool = pool.id === 'argon'
+        ? pool.match(modelKey)
+        : !isArgon && (provider ? pool.providers.includes(provider) : pool.match(modelKey));
       if (!inPool) continue;
       const usedPct = modelUsedPct(model?.quotaInfo);
       if (usedPct === null) continue;

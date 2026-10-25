@@ -13,7 +13,9 @@ function antigravityUA() {
   const p = (self.navigator?.userAgent || '').toLowerCase();
   const os = p.includes('win') ? 'windows' : p.includes('mac') ? 'darwin' : 'linux';
   const arch = p.includes('arm') || p.includes('aarch64') ? 'arm64' : 'amd64';
-  return `antigravity/2.0.4 ${os}/${arch}`;
+  // The desktop UA omits the separate Argon quota, even with HTTP 200. Use the
+  // CLI client format, verified against both backends with the existing OAuth token.
+  return `antigravity/cli/1.4.7 ${os}/${arch}`;
 }
 
 async function ensureAntigravityUserAgent() {
